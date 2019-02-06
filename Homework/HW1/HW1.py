@@ -11,14 +11,14 @@ from torchvision import datasets, transforms
 def load_data():
     ## USE THIS SNIPPET TO GET BINARY TRAIN/TEST DATA
 
-    train_data = datasets.MNIST('/data/patrick-data/pytorch/data/',
+    train_data = datasets.MNIST('data/',
                                 train=True,
                                 download=True,
                                 transform=transforms.Compose([
                                     transforms.ToTensor(),
                                     transforms.Normalize((0.1307,), (0.3081,))
                                 ]))
-    test_data = datasets.MNIST('/data/patrick-data/pytorch/data/',
+    test_data = datasets.MNIST('data/',
                                train=False,
                                download=True,
                                transform=transforms.Compose([
@@ -26,28 +26,41 @@ def load_data():
                                    transforms.Normalize((0.1307,), (0.3081,))
                                ]))
     subset_train_indices = ((train_data.train_labels == 0) +
-                      (train_data.train_labels == 1)).nonzero()
+                            (train_data.train_labels == 1)).nonzero().view(-1)
     train_loader = torch.utils.data.DataLoader(
         train_data, batch_size=batch_size, shuffle=False,
         sampler=SubsetRandomSampler(subset_train_indices))
 
 
     subset_test_indices = ((test_data.test_labels == 0) +
-                      (test_data.test_labels == 1)).nonzero()
+                           (test_data.test_labels == 1)).nonzero().view(-1)
     test_loader = torch.utils.data.DataLoader(
         test_data, batch_size=batch_size, shuffle=False,
         sampler=SubsetRandomSampler(subset_test_indices))
 
     return train_loader, test_loader
 
+class LogisticRegression(nn.Module):
+    def __init__(self, n_feature, n_class):
+        super(LogisticRegression, self).__init__()
+        self.linear = nn.Linear(n_feature, n_class)
 
-class LogisticRegression():
-    def __init__():
-        pass
+    def forward(self, x):
+        h = torch.sigmoid(self.linear(x))
+        return h
 
-class SVM():
-    def __init__():
-        pass
+class LinearSVM():
+    def __init__(self, n_feature, n_class):
+        super(LinearSVM, self).__init__()
+        self.linear = nn.Linear(n_feature, n_class)
+
+    def forward(self, x):
+        h = self.linear(x)
+        return h
+
+class LogRegLoss(torch.autograd.Function):
+    @staticmethod
+    def forward():
 
 
 if __name__ == "__main__":
@@ -56,6 +69,17 @@ if __name__ == "__main__":
 
     # Training the Model
     # Notice that newest Pytorch merge tensor and variable, so the additional Variable wrapping is no longer required.
+
+    D_in, D_out = 784, 1
+
+    model = LogisticRegression(D_in, D_out)
+    loss_fn = torch.nn.MSELoss(reduction='sum')
+
+    num_epochs = 500
+
+
+    lr = 1e-4
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     for epoch in range(num_epochs):
         total_loss = 0
@@ -66,8 +90,18 @@ if __name__ == "__main__":
 
             ## TODO
 
+            y_pred = model(images)
+
+            batch_loss = loss_fn(y_pred, labels)
+
+            optimizer.zero_grad()
+            batch_loss.backward()
+            optimizer.step()
+
+
         # Print your results every epoch
 
+    exit()
 
     # Test the Model
     correct = 0.
