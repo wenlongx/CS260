@@ -46,8 +46,13 @@ class LogisticRegression(nn.Module):
         self.linear = nn.Linear(n_feature, n_class)
 
     def forward(self, x):
-        h = torch.sigmoid(self.linear(x))
+        h = self.linear(x)
         return h
+
+    def predict(self, x):
+        h = self.linear(x)
+        pred = torch.sigmoid(h)
+        return (pred == torch.max(pred)).float()
 
 class LinearSVM():
     def __init__(self, n_feature, n_class):
@@ -58,9 +63,8 @@ class LinearSVM():
         h = self.linear(x)
         return h
 
-class LogRegLoss(torch.autograd.Function):
-    @staticmethod
-    def forward():
+def logistic_loss(pred, labels):
+    return torch.log(1 + torch.exp(-torch.dot(pred, labels)))
 
 
 if __name__ == "__main__":
@@ -73,9 +77,9 @@ if __name__ == "__main__":
     D_in, D_out = 784, 1
 
     model = LogisticRegression(D_in, D_out)
-    loss_fn = torch.nn.MSELoss(reduction='sum')
+    loss_fn = logistic_loss
 
-    num_epochs = 500
+    num_epochs = 5
 
 
     lr = 1e-4
@@ -90,18 +94,17 @@ if __name__ == "__main__":
 
             ## TODO
 
-            y_pred = model(images)
+            y_pred = model(images).flatten()
 
             batch_loss = loss_fn(y_pred, labels)
+            total_loss += batch_loss
 
             optimizer.zero_grad()
             batch_loss.backward()
             optimizer.step()
 
-
         # Print your results every epoch
-
-    exit()
+        print(total_loss)
 
     # Test the Model
     correct = 0.
@@ -110,6 +113,10 @@ if __name__ == "__main__":
         images = Variable(images.view(-1, 28*28))
 
         ## Put your prediction code here
+        # output = model(images).flatten()
+        # prediction = torch.sigmoid(output)
+        pred = model.predict(images)
+        prediction = Variable(2*(pred.float()-0.5))
 
         correct += (prediction.view(-1).long() == labels).sum()
         total += images.shape[0]
