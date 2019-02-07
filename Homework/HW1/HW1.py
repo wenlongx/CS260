@@ -1,6 +1,8 @@
 #Don't change batch size
 batch_size = 64
 
+import itertools
+
 from torch.utils.data.sampler import SubsetRandomSampler
 import torch
 import torch.nn as nn
@@ -52,20 +54,29 @@ class LogisticRegression(nn.Module):
     def predict(self, x):
         h = self.linear(x)
         pred = torch.sigmoid(h)
-        return (pred == torch.max(pred)).float()
+        return torch.where(pred > 0.5,
+                           torch.ones(pred.shape),
+                           -torch.ones(pred.shape))
 
-class LinearSVM():
+class LinearSVM(nn.Module):
     def __init__(self, n_feature, n_class):
         super(LinearSVM, self).__init__()
-        self.linear = nn.Linear(n_feature, n_class)
+        self.linear = nn.Linear(n_feature, n_class, bias=True)
 
     def forward(self, x):
         h = self.linear(x)
         return h
 
-def logistic_loss(pred, labels):
-    return torch.log(1 + torch.exp(-torch.dot(pred, labels)))
+    def predict(self, x):
+        h = self.linear(x)
+        return torch.sign(h)
 
+def logistic_loss(pred, labels):
+    return torch.mean(torch.log(1 + torch.exp(-torch.mul(pred, labels))))
+
+def hinge_loss(pred, labels):
+    ywx = torch.mul(pred, labels)
+    return torch.mean(torch.max(torch.zeros(ywx.shape), torch.ones(ywx.shape) - ywx))
 
 if __name__ == "__main__":
 
@@ -76,48 +87,68 @@ if __name__ == "__main__":
 
     D_in, D_out = 784, 1
 
-    model = LogisticRegression(D_in, D_out)
-    loss_fn = logistic_loss
+    models = [
+        (LogisticRegression, logistic_loss),
+        (LinearSVM, hinge_loss)
+    ]
 
-    num_epochs = 5
+    num_epochs = 10
+    momentum = 0.9
+    learning_rates = [1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
 
+    for lr in learning_rates:
+        for use_momentum in [False, True]:
+            if use_momentum:
+                print(f"Learning Rate: {lr}\tMomentum:\t{momentum}")
+            else:
+                print(f"Learning Rate: {lr}")
+            for model_class, loss_fn in models:
+                print(model_class)
 
-    lr = 1e-4
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+                model = model_class(D_in, D_out)
 
-    for epoch in range(num_epochs):
-        total_loss = 0
-        for i, (images, labels) in enumerate(train_loader):
-            images = Variable(images.view(-1, 28*28))
-            #Convert labels from 0,1 to -1,1
-            labels = Variable(2*(labels.float()-0.5))
+                if use_momentum:
+                    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
+                else:
+                    optimizer = torch.optim.SGD(model.parameters(), lr=lr)
 
-            ## TODO
+                for epoch in range(num_epochs):
+                    total_loss = 0.
+                    num_batches = 0.
+                    for i, (images, labels) in enumerate(train_loader):
+                        images = Variable(images.view(-1, 28*28))
+                        #Convert labels from 0,1 to -1,1
+                        labels = Variable(2*(labels.float()-0.5))
 
-            y_pred = model(images).flatten()
+                        ## TODO
 
-            batch_loss = loss_fn(y_pred, labels)
-            total_loss += batch_loss
+                        y_pred = model(images).flatten()
 
-            optimizer.zero_grad()
-            batch_loss.backward()
-            optimizer.step()
+                        batch_loss = loss_fn(y_pred, labels)
+                        total_loss += batch_loss
 
-        # Print your results every epoch
-        print(total_loss)
+                        optimizer.zero_grad()
+                        batch_loss.backward()
+                        optimizer.step()
 
-    # Test the Model
-    correct = 0.
-    total = 0.
-    for images, labels in test_loader:
-        images = Variable(images.view(-1, 28*28))
+                        num_batches += 1.
 
-        ## Put your prediction code here
-        # output = model(images).flatten()
-        # prediction = torch.sigmoid(output)
-        pred = model.predict(images)
-        prediction = Variable(2*(pred.float()-0.5))
+                    avg_loss = total_loss / num_batches
 
-        correct += (prediction.view(-1).long() == labels).sum()
-        total += images.shape[0]
-    print('Accuracy of the model on the test images: %f %%' % (100 * (correct.float() / total)))
+                    # Print your results every epoch
+                    print(f"Epoch: \t{epoch}\tLoss:\t{avg_loss.item()}")
+
+                # Test the Model
+                correct = 0.
+                total = 0.
+                for images, labels in test_loader:
+                    images = Variable(images.view(-1, 28*28))
+                    #Convert labels from 0,1 to -1,1
+                    labels = Variable(2*(labels.float()-0.5)).long()
+
+                    ## Put your prediction code here
+                    prediction = model.predict(images)
+
+                    correct += (prediction.view(-1).long() == labels).sum()
+                    total += images.shape[0]
+                print('Accuracy of the model on the test images: %f %%' % (100 * (correct.float() / total)))
