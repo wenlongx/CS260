@@ -88,24 +88,35 @@ if __name__ == "__main__":
     D_in, D_out = 784, 1
 
     models = [
-        (LogisticRegression, logistic_loss),
-        (LinearSVM, hinge_loss)
+        ("LogisticRegression", logistic_loss),
+        ("LinearSVM", hinge_loss)
     ]
+
+    model_name_to_class = {
+        "LinearSVM": LinearSVM,
+        "LogisticRegression": LogisticRegression
+    }
 
     num_epochs = 10
     momentum = 0.9
     learning_rates = [1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
 
+    results = {}
+
     for lr in learning_rates:
+        results[lr] = {}
         for use_momentum in [False, True]:
+            results[lr][use_momentum] = {}
             if use_momentum:
                 print(f"Learning Rate: {lr}\tMomentum:\t{momentum}")
             else:
                 print(f"Learning Rate: {lr}")
-            for model_class, loss_fn in models:
-                print(model_class)
+            for model_name, loss_fn in models:
+                results[lr][use_momentum][model_name] = {}
+                results[lr][use_momentum][model_name]["train"] = []
+                print(model_name)
 
-                model = model_class(D_in, D_out)
+                model = model_name_to_class[model_name](D_in, D_out)
 
                 if use_momentum:
                     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
@@ -135,6 +146,8 @@ if __name__ == "__main__":
 
                     avg_loss = total_loss / num_batches
 
+                    results[lr][use_momentum][model_name]["train"].append(avg_loss)
+
                     # Print your results every epoch
                     print(f"Epoch: \t{epoch}\tLoss:\t{avg_loss.item()}")
 
@@ -151,4 +164,29 @@ if __name__ == "__main__":
 
                     correct += (prediction.view(-1).long() == labels).sum()
                     total += images.shape[0]
+
+                results[lr][use_momentum][model_name]["test"] = (100 * (correct.float() / total))
                 print('Accuracy of the model on the test images: %f %%' % (100 * (correct.float() / total)))
+
+
+    # UNCOMMENT THE LINES BELOW TO GENERATE THE PLOTS USED IN THE REPORT
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    for model_name, loss_fn in models:
+        for use_momentum in [False, True]:
+            plt.figure(figsize=(10,10))
+            for lr in learning_rates:
+                acc = results[lr][use_momentum][model_name]["test"]
+                plt.plot(np.linspace(1, num_epochs, num_epochs), results[lr][use_momentum][model_name]["train"],
+                         label=f"Learning Rate = {lr}, Test Accuracy = {acc:.4f}%")
+
+            if use_momentum:
+                plt.title(f"{model_name} using SGD with Momentum")
+            else:
+                plt.title(f"{model_name} using SGD")
+            plt.xlabel("Epoch")
+            plt.ylabel("Training Loss")
+            plt.legend()
+            plt.show()
