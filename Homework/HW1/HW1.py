@@ -168,25 +168,24 @@ if __name__ == "__main__":
                 results[lr][use_momentum][model_name]["test"] = (100 * (correct.float() / total))
                 print('Accuracy of the model on the test images: %f %%' % (100 * (correct.float() / total)))
 
-
-    # UNCOMMENT THE LINES BELOW TO GENERATE THE PLOTS USED IN THE REPORT
-
-    import matplotlib.pyplot as plt
-    import numpy as np
-
-    for model_name, loss_fn in models:
-        for use_momentum in [False, True]:
-            plt.figure(figsize=(10,10))
-            for lr in learning_rates:
-                acc = results[lr][use_momentum][model_name]["test"]
-                plt.plot(np.linspace(1, num_epochs, num_epochs), results[lr][use_momentum][model_name]["train"],
-                         label=f"Learning Rate = {lr}, Test Accuracy = {acc:.4f}%")
-
-            if use_momentum:
-                plt.title(f"{model_name} using SGD with Momentum")
-            else:
-                plt.title(f"{model_name} using SGD")
-            plt.xlabel("Epoch")
-            plt.ylabel("Training Loss")
-            plt.legend()
-            plt.show()
+    # # UNCOMMENT THE LINES BELOW TO GENERATE THE PLOTS USED IN THE REPORT
+    #
+    # import matplotlib.pyplot as plt
+    # import numpy as np
+    #
+    # for model_name, loss_fn in models:
+    #     for use_momentum in [False, True]:
+    #         plt.figure(figsize=(10,10))
+    #         for lr in learning_rates:
+    #             acc = results[lr][use_momentum][model_name]["test"]
+    #             plt.plot(np.linspace(1, num_epochs, num_epochs), results[lr][use_momentum][model_name]["train"],
+    #                      label=f"Learning Rate = {lr}, Test Accuracy = {acc:.4f}%")
+    #
+    #         if use_momentum:
+    #             plt.title(f"{model_name} using SGD with Momentum")
+    #         else:
+    #             plt.title(f"{model_name} using SGD")
+    #         plt.xlabel("Epoch")
+    #         plt.ylabel("Training Loss")
+    #         plt.legend()
+    #         plt.show()
