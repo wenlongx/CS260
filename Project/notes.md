@@ -48,4 +48,128 @@
     - adversarial training == a form of regularization
 
 
-### Explaining and Harnessing Adversarial Examples
+### ZOO - Zeroth Order Optimization Based Black-box attacks to Deep NN without training substitute models
+- abstract
+    - vulnerability - barely noticeable adversarial images that lead to misclassification
+    - adversarial images are highly transferrable
+    - black box attack
+    - propose a black box attack that only has access to input and output, not the model
+    - ZOO attacks to directly estimate the gradients of the targeted DNN for generating adversarial samples
+    - ZOO means we don't have to train substitute models
+- introduction
+    - most studies focus on white-box (model weights are visible) - can use gradient descent to attack DNN
+    - most real world systems do not release weights, just black box model
+    - consider a black box attack setting
+    - target model is a **image classifier CNN**
+    - 2 kinds of black box attacks
+        - untargeted attack == crafting adversarial example to lead to misclassification
+        - targeted attac == craft example to be classified into specific class
+- adversarial attacks & transferability
+    - open box methods
+        - fast gradient sign method (FGSM)
+            - sign of gradient from backprop, to generate admissible examples (baseline, based on the first-order gradient)
+        - jacobian-based saliency map attack (JSMA)
+            - greedy algo that iteratively modifies the most significant pixel based on saliency map
+        - DeepFool
+            - untargeted attack algo that finds the least distortion (in Euclidian distance) leading to misclassification, by projecting image to closest separating hyperplane
+        - Carlini & Wagner Attack
+            - use L2 nom (euclidian distance) to quantify difference between adversarial and original examples
+            - gradient-descent based, driven by logit layer & L2 distortion
+        - Transferability
+            - can adversarial examples for one model also be adversarial examples for another model?
+    - black box attacks + substitute models
+        - black-box: initial images / final labels known, model not known
+            - allows querying
+        - no-box: no initial images or labels known - focuses on model transferrability
+        - generally for black-box settings, existing approaches use possibility of querying model to train a substitute model, which can then be attacked using any white-box techniques
+        - adversarial examples crafted from substitute model are highly transferrable to other DNN's, given that we can query them
+- defending adversarial attacks
+    - detection-based defense -> differentiate adversarial example from benigh examples using statistical tests
+        - can use feature-squeezing (reducing image to a certain subspace)
+    - gradient and representation masking
+        - use of gradients via backprop == crucial to crafting adversarial examples
+        - gradient masking
+    - adversarial training
+        - jointly trained, with an adversarial DNN
+        - use adversarial examples as data augmentation
+        - can be made robust at the price of increased network capacity
+- black box using zeroth order optimization
+    - zeroth order == derivative free optimization methods
+    - by evaluating the objective function at two very close points, a gradient vector can be estimated, then we can use classical optimization techniques like Grad Desc
+    - exploit the zero'th order optimization, and spares the need to train a substitute model
+    - propose to use coordinate descent algorithm
+        - update coordinates after only a few gradient evaluations
+- results - skipped over this section, but it works well
+- conclusion & future work
+    - accelerated black-box attack
+        - how to make computations more efficient
+    - adversarial training using black-box attack
+        - usually adversarial training is implemented in a white-box setting
+    - black-box attacks in different domains
+        - only image classifiers
+
+### Black-box Adversarial Attacks with Limited Queries and Information
+- abstract
+    - NN are susceptible to black-box attacks
+    - we define 3 realistic threat models:
+        - query-limited setting
+        - partial-information setting
+        - label-only setting
+    - develop attacks that can still fool classifiers
+        - imagenet, google cloud api
+- introduction
+    - one approach is to train a substitute network, then attack the substitute with white-box methods, but this doesn't always translate well
+    - query-limited setting
+        - attacker has a limited number of queries to the classifier (interested in query-efficient algorithms for generating adversarial examples)
+        - Clarifai
+    - partial-information setting
+        - only has access for probabilities in the top k classes instead of probabilities for all of the classes
+        - Google Cloud Vision
+    - label-only setting
+        - only has access to the class labels, not the probabilities for the top k classes
+- contributions
+    - previous methods use substitute networks or coordinate-wise gradient estimation
+        - but these need lots of queries (and since commercial == low throughput and high latency, with rate limits)
+    - query-efficient adversarial examples
+        - NES variant as a method of generating adversarial examples (black-box gradient estimation)
+        - use PGD with estimated gradient
+    - adversarial examples with partial information
+        - new algorithm - starts with image of target class and alternates between blending in the original image and maximizing the likelihood of the target class
+        - no gradients, just blending
+    - adversarial examples with scoreless feedback
+        - noise robustness as a proxy for classification score
+- approach
+    - Natural Evolutionary Strategies
+        - derivative-free optimization, based on the idea of a search distribution
+        - NES maximizes the expected value of the loss function under the search distribution
+        - gradient estimation in far fewer queries than typical finite-difference methods
+    - query-limited attacks
+        - NES used as gradient estimator, with Projected Gradient Descent
+    - partial-information setting
+        - begin with instance of the adversary class
+        - then alternate between projecting onto l_inf boxes of decreasing sizes, so that the adversarial class remains within the top k at all times
+        - and perturbing the image to maximize the probability of the adversarial target class
+    - label only setting
+        - define a score to quantify how adversarial the image is, based on the ranking
+        - used as a proxy for softmax
+        - use the same partial-information technique
+- related work
+    - white-box vs black-box
+
+## Defending against Black-box AI attacks
+### Towards Deep Learning Models Resistant to Adversarial Attacks
+- introduction
+    - use min-max as foundation to capture notion of security against adversarial attacks
+    - study of optimization landscape
+    - impact of network architecture on adversarial robustness (model capacity)
+- optimization view on adversarial robustness
+    - ERM (emperical risk minimization) used to find classifiers with small population risk
+    - does not yield models that are robust to adversarially crafted examples
+    - to reliably train models that are robust to adversarial attacks, need to augment ERM paradigm appropriately
+        - specify an attack model
+            - allowed perturbations that formalizes manipulative power of the adversary
+- capacity helps, when training with adversarial examples
+- more capacity + stronger adversaries decrease transferability
+
+### Towards Robust Neural Networks via Random Self-ensemble
+- add random noise in each layer

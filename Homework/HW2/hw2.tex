@@ -1,0 +1,46 @@
+\documentclass[11pt]{article}
+% decent example of doing mathematics and proofs in LaTeX.
+% An Incredible degree of information can be found at
+% http://en.wikibooks.org/wiki/LaTeX/Mathematics
+
+% Use wide margins, but not quite so wide as fullpage.sty
+\marginparwidth 0.5in 
+\oddsidemargin 0.25in 
+\evensidemargin 0.25in 
+\marginparsep 0.25in
+\topmargin 0.25in 
+\textwidth 6in \textheight 8 in
+% That's about enough definitions
+
+\usepackage{graphicx}
+\usepackage{enumitem}
+\graphicspath{ {./} }
+
+\usepackage{amsmath}
+\usepackage{upgreek}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\newcommand\norm[1]{\left\lVert#1\right\rVert}
+
+\begin{document}
+\author{Wenlong Xiong (204407085)}
+\title{CS 260 Homework 2}
+\maketitle
+
+
+\section{Problem 1}
+\subsection{(a)}
+\boxed{\textbf{False}} If classifier A has a lower training error than classifier B, it does not necessarily mean that classifier A has a lower test error than classifier B. This is because classification accuracy on the train set does not necessarily directly correlate with the train set. If classifier A has overfit on the training set, then its training accuracy will be very high (low training error) but will not be able to generalize to the test set, and will have a higher test error. In cases like these, classifier B could have a lower test error even if it has a higher train error than classifier A.
+
+\subsection{(b)}
+
+
+\subsection{(c)}
+
+
+\section{Problem 2}
+
+\section{Problem 3}
+
+
+\end{document}
