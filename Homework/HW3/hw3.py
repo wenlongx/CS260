@@ -10,6 +10,7 @@ import torch.utils.data as td
 import random,time
 
 import sys
+import gc
 
 
 class MLP(torch.nn.Module):
@@ -18,32 +19,27 @@ class MLP(torch.nn.Module):
 
         self.input_dim = np.prod(input_size)
 
-        self.relu = nn.ReLU()
-        self.softmax = nn.Softmax()
+        self.fc = nn.Sequential(
+            nn.Linear(self.input_dim, 512),
+            nn.ReLU(),
+            nn.Linear(512, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, 32),
+            nn.ReLU()
+        )
 
-        self.fc1 = nn.Linear(self.input_dim, 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, 128)
-        self.fc4 = nn.Linear(128, 64)
-        self.fc5 = nn.Linear(64, 32)
-        self.fc6 = nn.Linear(32, 32)
-        self.fc7 = nn.Linear(32, num_classes)
+        self.fc_out = nn.Linear(32, num_classes)
 
     def forward(self, x):
         out = x.view(-1, self.input_dim)
-        out = self.fc1(out)
-        out = self.relu(out)
-        out = self.fc2(out)
-        out = self.relu(out)
-        out = self.fc3(out)
-        out = self.relu(out)
-        out = self.fc4(out)
-        out = self.relu(out)
-        out = self.fc5(out)
-        out = self.relu(out)
-        out = self.fc6(out)
-        out = self.relu(out)
-        out = self.fc7(out)
+        out = self.fc(out)
+        out = self.fc_out(out)
         return out
 
     def predict(self, x):
@@ -61,45 +57,35 @@ class CNN(torch.nn.Module):
 
         self.relu = nn.ReLU()
 
-        # 3 x 32 x 32
-        self.conv1 = nn.Conv2d(n_channels, 8, kernel_size=(6, 6), padding=2, stride=2)
-        # 8 x 16 x 16
-        self.conv2 = nn.Conv2d(8, 16, kernel_size=(5, 5))
-        # 16 x 12 x 12
-        self.conv3 = nn.Conv2d(16, 32, kernel_size=(3, 3))
-        # 32 x 10 x 10
-        self.conv4 = nn.Conv2d(32, 64, kernel_size=(3, 3))
+        self.conv_layers = nn.Sequential(
+            # 3 x 32 x 32
+            nn.Conv2d(n_channels, 8, kernel_size=(6, 6), padding=2, stride=2),
+            nn.ReLU(),
+            # 8 x 16 x 16
+            nn.Conv2d(8, 16, kernel_size=(5, 5)),
+            nn.ReLU(),
+            # 16 x 12 x 12
+            nn.Conv2d(16, 32, kernel_size=(3, 3)),
+            nn.ReLU(),
+            # 32 x 10 x 10
+            nn.Conv2d(32, 64, kernel_size=(3, 3)),
+            nn.ReLU()
+            # 64 x 8 x 8
+        )
 
-        # 64 x 8 x 8
-        self.fc1 = nn.Linear(64 * 8 * 8, 512)
-        self.fc2 = nn.Linear(512, 64)
-        self.fc3 = nn.Linear(64, 10)
+        self.fc_layers = nn.Sequential(
+            nn.Linear(64 * 8 * 8, 512),
+            nn.ReLU(),
+            nn.Linear(512, 64),
+            nn.ReLU(),
+            nn.Linear(64, 10)
+        )
 
     def forward(self, x):
         out = x
-
-        out = self.conv1(out)
-        out = self.relu(out)
-
-        out = self.conv2(out)
-        out = self.relu(out)
-
-        out = self.conv3(out)
-        out = self.relu(out)
-
-        out = self.conv4(out)
-        out = self.relu(out)
-
+        out = self.conv_layers(out)
         out = out.view(-1, 64 * 8 * 8)
-
-        out = self.fc1(out)
-        out = self.relu(out)
-
-        out = self.fc2(out)
-        out = self.relu(out)
-
-        out = self.fc3(out)
-
+        out = self.fc_layers(out)
         return out
 
     def predict(self, x):
@@ -176,7 +162,7 @@ if __name__ == "__main__":
             y_pred = model(images)
 
             batch_loss = loss_fn(y_pred, labels)
-            total_loss += batch_loss
+            total_loss += (batch_loss.detach().item() / batch_size)
 
             optimizer.zero_grad()
             batch_loss.backward()
@@ -190,8 +176,10 @@ if __name__ == "__main__":
         elapsed = end_time - start_time
 
         # Print your results every epoch
-        print(f"Epoch: \t{epoch}\tTime: \t{elapsed:.6f}\tLoss:\t{avg_loss.item()}")
+        print(f"Epoch: \t{epoch}\tTime: \t{elapsed:.6f}\tLoss:\t{avg_loss}")
         results["train_loss"].append(avg_loss)
+
+        gc.collect()
 
     # Test the Model
     correct = 0.
@@ -212,7 +200,7 @@ if __name__ == "__main__":
     print(np.array(results["train_loss"]))
 
     # save model and loss
-    torch.save(model, f"results/{model_name}_{test_acc:.0f}.model")
+    torch.save(model.state_dict(), f"results/{model_name}_{test_acc:.0f}.ckpt")
     np.savetxt(f"results/{model_name}_{test_acc:.0f}_train_loss.txt", np.array(results["train_loss"]))
 
     # # UNCOMMENT THE LINES BELOW TO GENERATE THE PLOTS USED IN THE REPORT
