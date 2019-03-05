@@ -140,15 +140,16 @@ if __name__ == "__main__":
         (CNN(input_dim, num_classes), "CNN")
     ]
 
-    loss_fn = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters())
-
     results = {}
 
     for model, model_name in models:
+
         print("====================================================================================")
-        print(f"\t\t\t {model_name}")
+        print(f"\t\t\t\t\t {model_name}")
         print("====================================================================================")
+
+        loss_fn = nn.CrossEntropyLoss()
+        optimizer = torch.optim.Adam(model.parameters())
 
         results[model_name] = {
             "train_loss": [],
