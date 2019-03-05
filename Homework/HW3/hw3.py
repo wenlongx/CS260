@@ -10,17 +10,106 @@ import torch.utils.data as td
 import random,time
 
 
-def cifar_loaders(batch_size, shuffle_test=False): 
+class MLP(torch.nn.Module):
+    def __init__(self, input_size, num_classes):
+        super(MLP, self).__init__()
+
+        self.input_dim = np.prod(input_size)
+
+        self.relu = nn.ReLU()
+        self.softmax = nn.Softmax()
+
+        self.fc1 = nn.Linear(self.input_dim, 512)
+        self.fc2 = nn.Linear(512, 256)
+        self.fc3 = nn.Linear(256, 128)
+        self.fc4 = nn.Linear(128, 64)
+        self.fc5 = nn.Linear(64, 32)
+        self.fc6 = nn.Linear(32, 32)
+        self.fc7 = nn.Linear(32, num_classes)
+
+    def forward(self, x):
+        out = Variable(x.view(-1, self.input_dim))
+        out = self.fc1(out)
+        out = self.relu(out)
+        out = self.fc2(out)
+        out = self.relu(out)
+        out = self.fc3(out)
+        out = self.relu(out)
+        out = self.fc4(out)
+        out = self.relu(out)
+        out = self.fc5(out)
+        out = self.relu(out)
+        out = self.fc6(out)
+        out = self.relu(out)
+        out = self.fc7(out)
+        return out
+
+    def predict(self, x):
+        out = self.forward(x)
+        return torch.argmax(out, dim=1)
+
+class CNN(torch.nn.Module):
+    def __init__(self, input_dim, num_classes):
+        super(CNN, self).__init__()
+
+        """
+        4 convolutional layers and 3 fully- connected layers, with ReLu activation function. The input dimension of 1st fully-connected layer must be 4096.
+        """
+        n_channels, x_dim, y_dim = input_dim
+
+        self.relu = nn.ReLU()
+
+        self.conv1 = nn.Conv2d(n_channels, 64, kernel_size=(5, 5), padding=2)
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=(3, 3), padding=1)
+        self.conv3 = nn.Conv2d(128, 256, kernel_size=(3, 3), padding=1)
+        self.conv4 = nn.Conv2d(256, 512, kernel_size=(3, 3), padding=1)
+
+        self.fc1 = nn.Linear(512 * 32 * 32, 4096)
+        self.fc2 = nn.Linear(4096, 1024)
+        self.fc3 = nn.Linear(1024, 10)
+
+    def forward(self, x):
+        out = x
+        out = self.conv1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.relu(out)
+
+        out = self.conv3(out)
+        out = self.relu(out)
+
+        out = self.conv4(out)
+        out = self.relu(out)
+
+        out = out.view(-1, 512 * 32 * 32)
+
+        out = self.fc1(out)
+        out = self.relu(out)
+
+        out = self.fc2(out)
+        out = self.relu(out)
+
+        out = self.fc3(out)
+
+        return out
+
+    def predict(self, x):
+        out = self.forward(x)
+        return torch.argmax(out, dim=1)
+
+
+def cifar_loaders(batch_size, shuffle_test=False):
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.225, 0.225, 0.225])
-    train = datasets.CIFAR10('./', train=True, download=True, 
+    train = datasets.CIFAR10('./', train=True, download=True,
         transform=transforms.Compose([
             transforms.RandomHorizontalFlip(),
             transforms.RandomCrop(32, 4),
             transforms.ToTensor(),
             normalize,
         ]))
-    test = datasets.CIFAR10('./', train=False, 
+    test = datasets.CIFAR10('./', train=False,
         transform=transforms.Compose([transforms.ToTensor(), normalize]))
     train_loader = torch.utils.data.DataLoader(train, batch_size=batch_size,
         shuffle=True, pin_memory=True)
@@ -28,9 +117,99 @@ def cifar_loaders(batch_size, shuffle_test=False):
         shuffle=shuffle_test, pin_memory=True)
     return train_loader, test_loader
 
-batch_size = 64
-test_batch_size = 64
 
-train_loader, _ = cifar_loaders(batch_size)
-_, test_loader = cifar_loaders(test_batch_size)
+if __name__ == "__main__":
 
+    # Load Data
+    batch_size = 64
+    test_batch_size = 64
+
+    train_loader, _ = cifar_loaders(batch_size)
+    _, test_loader = cifar_loaders(test_batch_size)
+
+
+    # Build Model
+    num_epochs = 1
+    momentum = 0.9
+    learning_rate = 1e-2
+
+    input_dim = (3, 32, 32)
+    num_classes = 10
+
+    # model = MLP(np.prod(input_dim), num_classes)
+    model = CNN(input_dim, num_classes)
+
+    loss_fn = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
+    results = {}
+
+    results["MLP"] = {
+        "train_loss": [],
+        "test_acc": 0
+    }
+
+    for epoch in range(num_epochs):
+        total_loss = 0.
+        num_batches = 0.
+        for i, (images, labels) in enumerate(train_loader):
+
+            # images = torch.Size([64, 3, 32, 32])
+            # labels = torch.Size([64, ])
+
+            labels = Variable(labels)
+            y_pred = model(images)
+
+            batch_loss = loss_fn(y_pred, labels)
+            total_loss += batch_loss
+
+            optimizer.zero_grad()
+            batch_loss.backward()
+            optimizer.step()
+
+            num_batches += 1.
+            break
+        break
+
+        avg_loss = total_loss / num_batches
+
+        # Print your results every epoch
+        print(f"Epoch: \t{epoch}\tLoss:\t{avg_loss.item()}")
+        results["MLP"]["train_loss"].append(avg_loss)
+
+    # Test the Model
+    correct = 0.
+    total = 0.
+    for images, labels in test_loader:
+        images = Variable(images.view(-1, 3 * 32 * 32))
+
+        ## Put your prediction code here
+        prediction = model.predict(images)
+
+        correct += (prediction.view(-1).long() == labels).sum()
+        total += images.shape[0]
+
+    print('Accuracy of the model on the test images: %f %%' % (100 * (correct.float() / total)))
+    results["MLP"]["test_acc"] = 100 * (correct.float() / total)
+
+    # # UNCOMMENT THE LINES BELOW TO GENERATE THE PLOTS USED IN THE REPORT
+    #
+    # import matplotlib.pyplot as plt
+    # import numpy as np
+    #
+    # for model_name, loss_fn in models:
+    #     for use_momentum in [False, True]:
+    #         plt.figure(figsize=(10,10))
+    #         for lr in learning_rates:
+    #             acc = results[lr][use_momentum][model_name]["test"]
+    #             plt.plot(np.linspace(1, num_epochs, num_epochs), results[lr][use_momentum][model_name]["train"],
+    #                      label=f"Learning Rate = {lr}, Test Accuracy = {acc:.4f}%")
+    #
+    #         if use_momentum:
+    #             plt.title(f"{model_name} using SGD with Momentum")
+    #         else:
+    #             plt.title(f"{model_name} using SGD")
+    #         plt.xlabel("Epoch")
+    #         plt.ylabel("Training Loss")
+    #         plt.legend()
+    #         plt.show()
