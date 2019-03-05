@@ -30,7 +30,7 @@ class MLP(torch.nn.Module):
         self.fc7 = nn.Linear(32, num_classes)
 
     def forward(self, x):
-        out = Variable(x.view(-1, self.input_dim))
+        out = x.view(-1, self.input_dim)
         out = self.fc1(out)
         out = self.relu(out)
         out = self.fc2(out)
@@ -61,13 +61,18 @@ class CNN(torch.nn.Module):
 
         self.relu = nn.ReLU()
 
-        self.conv1 = nn.Conv2d(n_channels, 16, kernel_size=(5, 5), padding=2)
-        self.conv2 = nn.Conv2d(16, 32, kernel_size=(3, 3), padding=1)
-        self.conv3 = nn.Conv2d(32, 64, kernel_size=(3, 3), padding=1)
-        self.conv4 = nn.Conv2d(64, 128, kernel_size=(3, 3), padding=1)
+        # 3 x 32 x 32
+        self.conv1 = nn.Conv2d(n_channels, 8, kernel_size=(6, 6), padding=2, stride=2)
+        # 8 x 16 x 16
+        self.conv2 = nn.Conv2d(8, 16, kernel_size=(5, 5))
+        # 16 x 12 x 12
+        self.conv3 = nn.Conv2d(16, 32, kernel_size=(3, 3))
+        # 32 x 10 x 10
+        self.conv4 = nn.Conv2d(32, 64, kernel_size=(3, 3))
 
-        self.fc1 = nn.Linear(128 * 32 * 32, 4096)
-        self.fc2 = nn.Linear(4096, 64)
+        # 64 x 8 x 8
+        self.fc1 = nn.Linear(64 * 8 * 8, 512)
+        self.fc2 = nn.Linear(512, 64)
         self.fc3 = nn.Linear(64, 10)
 
     def forward(self, x):
@@ -85,7 +90,7 @@ class CNN(torch.nn.Module):
         out = self.conv4(out)
         out = self.relu(out)
 
-        out = out.view(-1, 128 * 32 * 32)
+        out = out.view(-1, 64 * 8 * 8)
 
         out = self.fc1(out)
         out = self.relu(out)
@@ -124,7 +129,7 @@ def cifar_loaders(batch_size, shuffle_test=False):
 if __name__ == "__main__":
 
     # Build Model
-    num_epochs = 1
+    num_epochs = 100
 
     input_dim = (3, 32, 32)
     num_classes = 10
@@ -147,8 +152,6 @@ if __name__ == "__main__":
     train_loader, _ = cifar_loaders(batch_size)
     _, test_loader = cifar_loaders(test_batch_size)
 
-    results = {}
-
     print("====================================================================================")
     print(f"\t\t\t\t {model_name}")
     print("====================================================================================")
@@ -156,7 +159,7 @@ if __name__ == "__main__":
     loss_fn = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters())
 
-    results[model_name] = {
+    results = {
         "train_loss": [],
         "test_acc": 0
     }
@@ -164,12 +167,12 @@ if __name__ == "__main__":
     for epoch in range(num_epochs):
         total_loss = 0.
         num_batches = 0.
+        start_time = time.time()
         for i, (images, labels) in enumerate(train_loader):
 
             # images = torch.Size([64, 3, 32, 32])
             # labels = torch.Size([64, ])
 
-            labels = Variable(labels)
             y_pred = model(images)
 
             batch_loss = loss_fn(y_pred, labels)
@@ -183,9 +186,12 @@ if __name__ == "__main__":
 
         avg_loss = total_loss / num_batches
 
+        end_time = time.time()
+        elapsed = end_time - start_time
+
         # Print your results every epoch
-        print(f"Epoch: \t{epoch}\tLoss:\t{avg_loss.item()}")
-        results[model_name]["train_loss"].append(avg_loss)
+        print(f"Epoch: \t{epoch}\tTime: \t{elapsed:.6f}\tLoss:\t{avg_loss.item()}")
+        results["train_loss"].append(avg_loss)
 
     # Test the Model
     correct = 0.
@@ -199,7 +205,15 @@ if __name__ == "__main__":
         total += images.shape[0]
 
     print('Accuracy of the model on the test images: %f %%' % (100 * (correct.float() / total)))
-    results[model_name]["test_acc"] = 100 * (correct.float() / total)
+    results["test_acc"] = 100 * (correct.float() / total)
+    test_acc = results["test_acc"]
+
+    print(results["train_loss"])
+    print(np.array(results["train_loss"]))
+
+    # save model and loss
+    torch.save(model, f"results/{model_name}_{test_acc:.0f}.model")
+    np.savetxt(f"results/{model_name}_{test_acc:.0f}_train_loss.txt", np.array(results["train_loss"]))
 
     # # UNCOMMENT THE LINES BELOW TO GENERATE THE PLOTS USED IN THE REPORT
     #
