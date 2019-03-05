@@ -59,14 +59,14 @@ class CNN(torch.nn.Module):
 
         self.relu = nn.ReLU()
 
-        self.conv1 = nn.Conv2d(n_channels, 64, kernel_size=(5, 5), padding=2)
-        self.conv2 = nn.Conv2d(64, 128, kernel_size=(3, 3), padding=1)
-        self.conv3 = nn.Conv2d(128, 256, kernel_size=(3, 3), padding=1)
-        self.conv4 = nn.Conv2d(256, 512, kernel_size=(3, 3), padding=1)
+        self.conv1 = nn.Conv2d(n_channels, 16, kernel_size=(5, 5), padding=2)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=(3, 3), padding=1)
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=(3, 3), padding=1)
+        self.conv4 = nn.Conv2d(128, 256, kernel_size=(3, 3), padding=1)
 
-        self.fc1 = nn.Linear(512 * 32 * 32, 4096)
-        self.fc2 = nn.Linear(4096, 1024)
-        self.fc3 = nn.Linear(1024, 10)
+        self.fc1 = nn.Linear(256 * 32 * 32, 4096)
+        self.fc2 = nn.Linear(4096, 64)
+        self.fc3 = nn.Linear(64, 10)
 
     def forward(self, x):
         out = x
