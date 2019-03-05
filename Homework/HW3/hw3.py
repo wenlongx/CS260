@@ -9,6 +9,8 @@ import numpy as np
 import torch.utils.data as td
 import random,time
 
+import sys
+
 
 class MLP(torch.nn.Module):
     def __init__(self, input_size, num_classes):
@@ -121,6 +123,23 @@ def cifar_loaders(batch_size, shuffle_test=False):
 
 if __name__ == "__main__":
 
+    # Build Model
+    num_epochs = 1
+
+    input_dim = (3, 32, 32)
+    num_classes = 10
+
+    if len(sys.argv) < 2 or (sys.argv[1] != "MLP" and sys.argv[1] != "CNN"):
+        print("Please call this script with the argument \"MLP\" or \"CNN\", to tell it which model to run. Defaulting to CNN.")
+        model = CNN(input_dim, num_classes)
+        model_name = "CNN"
+    elif sys.argv[1] == "MLP":
+        model = MLP(np.prod(input_dim), num_classes)
+        model_name = "MLP"
+    else:
+        model = CNN(input_dim, num_classes)
+        model_name = "CNN"
+
     # Load Data
     batch_size = 64
     test_batch_size = 64
@@ -128,73 +147,59 @@ if __name__ == "__main__":
     train_loader, _ = cifar_loaders(batch_size)
     _, test_loader = cifar_loaders(test_batch_size)
 
-
-    # Build Model
-    num_epochs = 1
-
-    input_dim = (3, 32, 32)
-    num_classes = 10
-
-    models = [
-        (MLP(np.prod(input_dim), num_classes), "MLP"),
-        (CNN(input_dim, num_classes), "CNN")
-    ]
-
     results = {}
 
-    for model, model_name in models:
+    print("====================================================================================")
+    print(f"\t\t\t\t {model_name}")
+    print("====================================================================================")
 
-        print("====================================================================================")
-        print(f"\t\t\t\t\t {model_name}")
-        print("====================================================================================")
+    loss_fn = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters())
 
-        loss_fn = nn.CrossEntropyLoss()
-        optimizer = torch.optim.Adam(model.parameters())
+    results[model_name] = {
+        "train_loss": [],
+        "test_acc": 0
+    }
 
-        results[model_name] = {
-            "train_loss": [],
-            "test_acc": 0
-        }
+    for epoch in range(num_epochs):
+        total_loss = 0.
+        num_batches = 0.
+        for i, (images, labels) in enumerate(train_loader):
 
-        for epoch in range(num_epochs):
-            total_loss = 0.
-            num_batches = 0.
-            for i, (images, labels) in enumerate(train_loader):
+            # images = torch.Size([64, 3, 32, 32])
+            # labels = torch.Size([64, ])
 
-                # images = torch.Size([64, 3, 32, 32])
-                # labels = torch.Size([64, ])
+            labels = Variable(labels)
+            y_pred = model(images)
 
-                labels = Variable(labels)
-                y_pred = model(images)
+            batch_loss = loss_fn(y_pred, labels)
+            total_loss += batch_loss
 
-                batch_loss = loss_fn(y_pred, labels)
-                total_loss += batch_loss
+            optimizer.zero_grad()
+            batch_loss.backward()
+            optimizer.step()
 
-                optimizer.zero_grad()
-                batch_loss.backward()
-                optimizer.step()
+            num_batches += 1.
 
-                num_batches += 1.
+        avg_loss = total_loss / num_batches
 
-            avg_loss = total_loss / num_batches
+        # Print your results every epoch
+        print(f"Epoch: \t{epoch}\tLoss:\t{avg_loss.item()}")
+        results[model_name]["train_loss"].append(avg_loss)
 
-            # Print your results every epoch
-            print(f"Epoch: \t{epoch}\tLoss:\t{avg_loss.item()}")
-            results[model_name]["train_loss"].append(avg_loss)
+    # Test the Model
+    correct = 0.
+    total = 0.
+    for images, labels in test_loader:
 
-        # Test the Model
-        correct = 0.
-        total = 0.
-        for images, labels in test_loader:
+        ## Put your prediction code here
+        prediction = model.predict(images)
 
-            ## Put your prediction code here
-            prediction = model.predict(images)
+        correct += (prediction.view(-1).long() == labels).sum()
+        total += images.shape[0]
 
-            correct += (prediction.view(-1).long() == labels).sum()
-            total += images.shape[0]
-
-        print('Accuracy of the model on the test images: %f %%' % (100 * (correct.float() / total)))
-        results[model_name]["test_acc"] = 100 * (correct.float() / total)
+    print('Accuracy of the model on the test images: %f %%' % (100 * (correct.float() / total)))
+    results[model_name]["test_acc"] = 100 * (correct.float() / total)
 
     # # UNCOMMENT THE LINES BELOW TO GENERATE THE PLOTS USED IN THE REPORT
     #
