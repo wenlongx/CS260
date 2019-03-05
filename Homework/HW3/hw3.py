@@ -60,21 +60,25 @@ class CNN(torch.nn.Module):
         self.relu = nn.ReLU()
 
         self.conv1 = nn.Conv2d(n_channels, 16, kernel_size=(5, 5), padding=2)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=(3, 3), padding=1)
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=(3, 3), padding=1)
-        self.conv4 = nn.Conv2d(128, 256, kernel_size=(3, 3), padding=1)
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=(3, 3), padding=1)
+        self.conv3 = nn.Conv2d(32, 64, kernel_size=(3, 3), padding=1)
+        self.conv4 = nn.Conv2d(64, 128, kernel_size=(3, 3), padding=1)
 
-        self.fc1 = nn.Linear(256 * 32 * 32, 4096)
+        self.fc1 = nn.Linear(128 * 32 * 32, 4096)
         self.fc2 = nn.Linear(4096, 64)
         self.fc3 = nn.Linear(64, 10)
 
     def forward(self, x):
         out = x
+        print(out.shape)
+
         out = self.conv1(out)
         out = self.relu(out)
+        print(out.shape)
 
         out = self.conv2(out)
         out = self.relu(out)
+        print(out.shape)
 
         out = self.conv3(out)
         out = self.relu(out)
@@ -82,7 +86,7 @@ class CNN(torch.nn.Module):
         out = self.conv4(out)
         out = self.relu(out)
 
-        out = out.view(-1, 512 * 32 * 32)
+        out = out.view(-1, 128 * 32 * 32)
 
         out = self.fc1(out)
         out = self.relu(out)
@@ -181,7 +185,6 @@ if __name__ == "__main__":
     correct = 0.
     total = 0.
     for images, labels in test_loader:
-        images = Variable(images.view(-1, 3 * 32 * 32))
 
         ## Put your prediction code here
         prediction = model.predict(images)
