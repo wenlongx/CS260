@@ -70,15 +70,12 @@ class CNN(torch.nn.Module):
 
     def forward(self, x):
         out = x
-        print(out.shape)
 
         out = self.conv1(out)
         out = self.relu(out)
-        print(out.shape)
 
         out = self.conv2(out)
         out = self.relu(out)
-        print(out.shape)
 
         out = self.conv3(out)
         out = self.relu(out)
@@ -172,8 +169,6 @@ if __name__ == "__main__":
             optimizer.step()
 
             num_batches += 1.
-            break
-        break
 
         avg_loss = total_loss / num_batches
 
