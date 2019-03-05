@@ -131,64 +131,69 @@ if __name__ == "__main__":
 
     # Build Model
     num_epochs = 1
-    momentum = 0.9
-    learning_rate = 1e-2
 
     input_dim = (3, 32, 32)
     num_classes = 10
 
-    # model = MLP(np.prod(input_dim), num_classes)
-    model = CNN(input_dim, num_classes)
+    models = [
+        (MLP(np.prod(input_dim), num_classes), "MLP"),
+        (CNN(input_dim, num_classes), "CNN")
+    ]
 
     loss_fn = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.Adam(model.parameters())
 
     results = {}
 
-    results["MLP"] = {
-        "train_loss": [],
-        "test_acc": 0
-    }
+    for model, model_name in models:
+        print("====================================================================================")
+        print(f"\t\t\t {model_name}")
+        print("====================================================================================")
 
-    for epoch in range(num_epochs):
-        total_loss = 0.
-        num_batches = 0.
-        for i, (images, labels) in enumerate(train_loader):
+        results[model_name] = {
+            "train_loss": [],
+            "test_acc": 0
+        }
 
-            # images = torch.Size([64, 3, 32, 32])
-            # labels = torch.Size([64, ])
+        for epoch in range(num_epochs):
+            total_loss = 0.
+            num_batches = 0.
+            for i, (images, labels) in enumerate(train_loader):
 
-            labels = Variable(labels)
-            y_pred = model(images)
+                # images = torch.Size([64, 3, 32, 32])
+                # labels = torch.Size([64, ])
 
-            batch_loss = loss_fn(y_pred, labels)
-            total_loss += batch_loss
+                labels = Variable(labels)
+                y_pred = model(images)
 
-            optimizer.zero_grad()
-            batch_loss.backward()
-            optimizer.step()
+                batch_loss = loss_fn(y_pred, labels)
+                total_loss += batch_loss
 
-            num_batches += 1.
+                optimizer.zero_grad()
+                batch_loss.backward()
+                optimizer.step()
 
-        avg_loss = total_loss / num_batches
+                num_batches += 1.
 
-        # Print your results every epoch
-        print(f"Epoch: \t{epoch}\tLoss:\t{avg_loss.item()}")
-        results["MLP"]["train_loss"].append(avg_loss)
+            avg_loss = total_loss / num_batches
 
-    # Test the Model
-    correct = 0.
-    total = 0.
-    for images, labels in test_loader:
+            # Print your results every epoch
+            print(f"Epoch: \t{epoch}\tLoss:\t{avg_loss.item()}")
+            results[model_name]["train_loss"].append(avg_loss)
 
-        ## Put your prediction code here
-        prediction = model.predict(images)
+        # Test the Model
+        correct = 0.
+        total = 0.
+        for images, labels in test_loader:
 
-        correct += (prediction.view(-1).long() == labels).sum()
-        total += images.shape[0]
+            ## Put your prediction code here
+            prediction = model.predict(images)
 
-    print('Accuracy of the model on the test images: %f %%' % (100 * (correct.float() / total)))
-    results["MLP"]["test_acc"] = 100 * (correct.float() / total)
+            correct += (prediction.view(-1).long() == labels).sum()
+            total += images.shape[0]
+
+        print('Accuracy of the model on the test images: %f %%' % (100 * (correct.float() / total)))
+        results[model_name]["test_acc"] = 100 * (correct.float() / total)
 
     # # UNCOMMENT THE LINES BELOW TO GENERATE THE PLOTS USED IN THE REPORT
     #
