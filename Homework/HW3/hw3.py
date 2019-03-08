@@ -46,6 +46,33 @@ class MLP(torch.nn.Module):
         out = self.forward(x)
         return torch.argmax(out, dim=1)
 
+class MLP_NoRelu(torch.nn.Module):
+    def __init__(self, input_size, num_classes):
+        super(MLP_NoRelu, self).__init__()
+
+        self.input_dim = np.prod(input_size)
+
+        self.fc = nn.Sequential(
+            nn.Linear(self.input_dim, 512),
+            nn.Linear(512, 256),
+            nn.Linear(256, 128),
+            nn.Linear(128, 64),
+            nn.Linear(64, 32),
+            nn.Linear(32, 32),
+        )
+
+        self.fc_out = nn.Linear(32, num_classes)
+
+    def forward(self, x):
+        out = x.view(-1, self.input_dim)
+        out = self.fc(out)
+        out = self.fc_out(out)
+        return out
+
+    def predict(self, x):
+        out = self.forward(x)
+        return torch.argmax(out, dim=1)
+
 class CNN(torch.nn.Module):
     def __init__(self, input_dim, num_classes):
         super(CNN, self).__init__()
@@ -53,32 +80,74 @@ class CNN(torch.nn.Module):
         """
         4 convolutional layers and 3 fully- connected layers, with ReLu activation function. The input dimension of 1st fully-connected layer must be 4096.
         """
-        n_channels, x_dim, y_dim = input_dim
-
-        self.relu = nn.ReLU()
+        self.n_channels, self.x_dim, self.y_dim = input_dim
 
         self.conv_layers = nn.Sequential(
             # 3 x 32 x 32
-            nn.Conv2d(n_channels, 8, kernel_size=(6, 6), padding=2, stride=2),
+            nn.Conv2d(self.n_channels, 64, kernel_size=(3, 3), padding=1, stride=1),
             nn.ReLU(),
-            # 8 x 16 x 16
-            nn.Conv2d(8, 16, kernel_size=(5, 5)),
+            # 64 x 32 x 32
+            nn.Conv2d(64, 64, kernel_size=(2, 2), padding=0, stride=2),
             nn.ReLU(),
-            # 16 x 12 x 12
-            nn.Conv2d(16, 32, kernel_size=(3, 3)),
+            # 64 x 16 x 16
+            nn.Conv2d(64, 64, kernel_size=(3, 3), padding=1, stride=1),
             nn.ReLU(),
-            # 32 x 10 x 10
-            nn.Conv2d(32, 64, kernel_size=(3, 3)),
+            # 64 x 16 x 16
+            nn.Conv2d(64, 64, kernel_size=(2, 2), padding=0, stride=2),
             nn.ReLU()
             # 64 x 8 x 8
         )
 
         self.fc_layers = nn.Sequential(
-            nn.Linear(64 * 8 * 8, 512),
+            nn.Linear(64 * 8 * 8, 1024),
             nn.ReLU(),
-            nn.Linear(512, 64),
+            nn.Dropout(p=0.5),
+            nn.Linear(1024, 256),
             nn.ReLU(),
-            nn.Linear(64, 10)
+            nn.Dropout(p=0.5),
+            nn.Linear(256, 10)
+        )
+
+
+    def forward(self, x):
+        out = x
+        out = self.conv_layers(out)
+        out = out.view(-1, 64 * 8 * 8)
+        out = self.fc_layers(out)
+        return out
+
+    def predict(self, x):
+        out = self.forward(x)
+        return torch.argmax(out, dim=1)
+
+
+class CNN_NoRelu(torch.nn.Module):
+    def __init__(self, input_dim, num_classes):
+        super(CNN_NoRelu, self).__init__()
+
+        """
+        4 convolutional layers and 3 fully- connected layers, with ReLu activation function. The input dimension of 1st fully-connected layer must be 4096.
+        """
+        self.n_channels, self.x_dim, self.y_dim = input_dim
+
+        self.conv_layers = nn.Sequential(
+            # 3 x 32 x 32
+            nn.Conv2d(self.n_channels, 64, kernel_size=(3, 3), padding=1, stride=1),
+            # 64 x 32 x 32
+            nn.Conv2d(64, 64, kernel_size=(2, 2), padding=0, stride=2),
+            # 64 x 16 x 16
+            nn.Conv2d(64, 64, kernel_size=(3, 3), padding=1, stride=1),
+            # 64 x 16 x 16
+            nn.Conv2d(64, 64, kernel_size=(2, 2), padding=0, stride=2),
+            # 64 x 8 x 8
+        )
+
+        self.fc_layers = nn.Sequential(
+            nn.Linear(64 * 8 * 8, 1024),
+            nn.Dropout(p=0.5),
+            nn.Linear(1024, 256),
+            nn.Dropout(p=0.5),
+            nn.Linear(256, 10)
         )
 
     def forward(self, x):
@@ -115,21 +184,38 @@ def cifar_loaders(batch_size, shuffle_test=False):
 if __name__ == "__main__":
 
     # Build Model
+    start_epoch = 0
     num_epochs = 100
 
     input_dim = (3, 32, 32)
     num_classes = 10
 
-    if len(sys.argv) < 2 or (sys.argv[1] != "MLP" and sys.argv[1] != "CNN"):
-        print("Please call this script with the argument \"MLP\" or \"CNN\", to tell it which model to run. Defaulting to CNN.")
+    if len(sys.argv) < 2 or (sys.argv[1] != "MLP" and sys.argv[1] != "MLP_NoRelu" and sys.argv[1] != "CNN" and sys.argv[1] != "CNN_NoRelu"):
+        print("Please call this script with the argument \"MLP\", \"MLP_NoRelu\" or \"CNN\", to tell it which model to run. Defaulting to CNN.")
         model = CNN(input_dim, num_classes)
         model_name = "CNN"
     elif sys.argv[1] == "MLP":
         model = MLP(np.prod(input_dim), num_classes)
         model_name = "MLP"
-    else:
+    elif sys.argv[1] == "MLP_NoRelu":
+        model = MLP_NoRelu(np.prod(input_dim), num_classes)
+        model_name = "MLP_NoRelu"
+    elif sys.argv[1] == "CNN":
         model = CNN(input_dim, num_classes)
         model_name = "CNN"
+    elif sys.argv[1] == "CNN_NoRelu":
+        model = CNN_NoRelu(input_dim, num_classes)
+        model_name = "CNN_NoRelu"
+    else:
+        print("Please call this script with the argument \"MLP\", \"MLP_NoRelu\" or \"CNN\", to tell it which model to run. Defaulting to CNN.")
+
+    if len(sys.argv) >= 5 and sys.argv[2] == "--restart":
+        if int(sys.argv[3]) > 0:
+            model.load_state_dict(torch.load(f"results/{model_name}_e{sys.argv[3]}.ckpt"))
+        start_epoch = int(sys.argv[3])
+        if len(sys.argv) >= 5:
+            num_epochs = int(sys.argv[4])
+
 
     # Load Data
     batch_size = 64
@@ -150,7 +236,7 @@ if __name__ == "__main__":
         "test_acc": 0
     }
 
-    for epoch in range(num_epochs):
+    for epoch in range(start_epoch+1, num_epochs+1):
         total_loss = 0.
         num_batches = 0.
         start_time = time.time()
@@ -162,13 +248,15 @@ if __name__ == "__main__":
             y_pred = model(images)
 
             batch_loss = loss_fn(y_pred, labels)
-            total_loss += (batch_loss.detach().item() / batch_size)
+            total_loss += batch_loss.detach().item()
 
             optimizer.zero_grad()
             batch_loss.backward()
             optimizer.step()
 
             num_batches += 1.
+
+            del batch_loss, y_pred, images, labels
 
         avg_loss = total_loss / num_batches
 
@@ -179,9 +267,26 @@ if __name__ == "__main__":
         print(f"Epoch: \t{epoch}\tTime: \t{elapsed:.6f}\tLoss:\t{avg_loss}")
         results["train_loss"].append(avg_loss)
 
+        # test acc every 10 epochs
+        if epoch % 10 == 0:
+            model.eval()
+            correct = 0.
+            total = 0.
+            for images, labels in test_loader:
+                prediction = model.predict(images)
+
+                correct += (prediction.view(-1).long() == labels).sum()
+                total += images.shape[0]
+
+            print('Accuracy of the model for epoch %f on the test images: %f %%' % (epoch, 100 * (correct.float() / total)))
+
+            torch.save(model.state_dict(), f"results/{model_name}_e{epoch}.ckpt")
+
+            model.train()
         gc.collect()
 
     # Test the Model
+    model.eval()
     correct = 0.
     total = 0.
     for images, labels in test_loader:
@@ -203,24 +308,3 @@ if __name__ == "__main__":
     torch.save(model.state_dict(), f"results/{model_name}_{test_acc:.0f}.ckpt")
     np.savetxt(f"results/{model_name}_{test_acc:.0f}_train_loss.txt", np.array(results["train_loss"]))
 
-    # # UNCOMMENT THE LINES BELOW TO GENERATE THE PLOTS USED IN THE REPORT
-    #
-    # import matplotlib.pyplot as plt
-    # import numpy as np
-    #
-    # for model_name, loss_fn in models:
-    #     for use_momentum in [False, True]:
-    #         plt.figure(figsize=(10,10))
-    #         for lr in learning_rates:
-    #             acc = results[lr][use_momentum][model_name]["test"]
-    #             plt.plot(np.linspace(1, num_epochs, num_epochs), results[lr][use_momentum][model_name]["train"],
-    #                      label=f"Learning Rate = {lr}, Test Accuracy = {acc:.4f}%")
-    #
-    #         if use_momentum:
-    #             plt.title(f"{model_name} using SGD with Momentum")
-    #         else:
-    #             plt.title(f"{model_name} using SGD")
-    #         plt.xlabel("Epoch")
-    #         plt.ylabel("Training Loss")
-    #         plt.legend()
-    #         plt.show()
