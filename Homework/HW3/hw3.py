@@ -94,7 +94,7 @@ class CNN(torch.nn.Module):
             nn.ReLU(),
             # 64 x 16 x 16
             nn.Conv2d(64, 64, kernel_size=(2, 2), padding=0, stride=2),
-            nn.ReLU()
+            nn.ReLU(),
             # 64 x 8 x 8
         )
 
@@ -102,10 +102,10 @@ class CNN(torch.nn.Module):
             nn.Linear(64 * 8 * 8, 1024),
             nn.ReLU(),
             nn.Dropout(p=0.5),
-            nn.Linear(1024, 256),
+            nn.Linear(1024, 512),
             nn.ReLU(),
             nn.Dropout(p=0.5),
-            nn.Linear(256, 10)
+            nn.Linear(512, 10)
         )
 
 
@@ -145,9 +145,9 @@ class CNN_NoRelu(torch.nn.Module):
         self.fc_layers = nn.Sequential(
             nn.Linear(64 * 8 * 8, 1024),
             nn.Dropout(p=0.5),
-            nn.Linear(1024, 256),
+            nn.Linear(1024, 512),
             nn.Dropout(p=0.5),
-            nn.Linear(256, 10)
+            nn.Linear(512, 10)
         )
 
     def forward(self, x):
