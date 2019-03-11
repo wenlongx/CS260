@@ -21,9 +21,9 @@ from cleverhans.utils_keras import KerasModelWrapper
 
 from models import *
 
-NUM_EPOCHS = 10
-BATCH_SIZE = 32
-LEARNING_RATE = 0.001
+NUM_EPOCHS = 50
+BATCH_SIZE = 64
+LEARNING_RATE = 0.002
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -31,6 +31,7 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
                   batch_size=BATCH_SIZE,
                   learning_rate=LEARNING_RATE,
                   run_cnn=True,
+                  adversarial_training=True,
                   test_dae=False, # test CNN with DAE preprocessing
                   test_stacked_dae=False, # test CNN with Stacked DAE preprocessing
                   v_noises=[0.1, 0.2, 0.3, 0.4, 0.5]):
@@ -113,30 +114,53 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
             include_optimizer=True
         )
 
-    # ======================================================================
-    # Generate adversarial examples for both train and test
-    # ======================================================================
+    if run_cnn and adversarial_training:
 
-    # if generate_adv_images:
-    #     print("Generate Adversarial images")
-    #
-    #     # Perform adversarial evaluation
-    #     wrap = KerasModelWrapper(cnn_model)
-    #     fgsm = FastGradientMethod(wrap, sess=sess)
-    #     fgsm_params = {
-    #         'eps': 0.3,
-    #         'clip_min': 0.,
-    #         'clip_max': 1.
-    #     }
-    #
-    #     adv_x_train = fgsm.generate_np(x_train, **fgsm_params)
-    #     adv_x_test = fgsm.generate_np(x_test, **fgsm_params)
-    #     np.save("data/x_train_adv.npy", adv_x_train)
-    #     np.save("data/x_test_adv.npy", adv_x_test)
+        print("Repeating the process, using adversarial training")
+        # Redefine Keras model
+        model_2 = ConvNet((n_rows, n_cols, n_channels), n_classes)
+        model_2(model_2.input)
+        wrap_2 = KerasModelWrapper(model_2)
+        fgsm_2 = FastGradientMethod(wrap_2, sess=sess)
+
+        # Use a loss function based on legitimate and adversarial examples
+        adv_loss_2 = get_adversarial_loss(model_2, fgsm_2, fgsm_params)
+        adv_acc_metric_2 = get_adversarial_acc_metric(model_2, fgsm_2, fgsm_params)
+        model_2.compile(
+            optimizer=keras.optimizers.Adam(learning_rate),
+            loss=adv_loss_2,
+            metrics=['accuracy', adv_acc_metric_2]
+        )
+
+        # Train an MNIST model
+        model_2.fit(x_train, y_train,
+                    batch_size=batch_size,
+                    epochs=num_epochs,
+                    validation_data=(x_test, y_test),
+                    verbose=1)
+
+        # Evaluate the accuracy on legitimate and adversarial test examples
+        _, acc, adv_acc = model_2.evaluate(x_test, y_test,
+                                           batch_size=batch_size,
+                                           verbose=0)
+        print('Test accuracy on legitimate examples: %0.4f' % acc)
+        print('Test accuracy on adversarial examples: %0.4f\n' % adv_acc)
+
+        keras.models.save_model(
+            cnn_model,
+            "models/cnn_adversarial.hdf5",
+            overwrite=True,
+            include_optimizer=True
+        )
 
     # ======================================================================
     # Test with DAE
     # ======================================================================
+
+    if adversarial_training:
+        cnn_name = "cnn_adversarial"
+    else:
+        cnn_name = "cnn"
 
     if test_dae:
         dae_adv_accuracies = []
@@ -144,7 +168,7 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
         for v_noise in v_noises:
             # define TF model graph
             cnn_model = ConvNet((n_rows, n_cols, n_channels), n_classes)
-            cnn_model.load_weights("models/cnn.hdf5", by_name=False)
+            cnn_model.load_weights(f"models/{cnn_name}.hdf5", by_name=False)
             cnn_model(cnn_model.input)
 
             wrap = KerasModelWrapper(cnn_model)
@@ -178,7 +202,7 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
 
             # define TF model graph
             cnn_model = ConvNet((n_rows, n_cols, n_channels), n_classes)
-            cnn_model.load_weights("models/cnn.hdf5", by_name=False)
+            cnn_model.load_weights(f"models/{cnn_name}.hdf5", by_name=False)
 
             cnn_model.compile(
                 optimizer=keras.optimizers.Adam(learning_rate),
@@ -205,7 +229,7 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
         for v_noise in v_noises:
             # define TF model graph
             cnn_model = ConvNet((n_rows, n_cols, n_channels), n_classes)
-            cnn_model.load_weights("models/cnn.hdf5", by_name=False)
+            cnn_model.load_weights(f"models/{cnn_name}.hdf5", by_name=False)
             cnn_model(cnn_model.input)
 
             wrap = KerasModelWrapper(cnn_model)
@@ -239,7 +263,7 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
 
             # define TF model graph
             cnn_model = ConvNet((n_rows, n_cols, n_channels), n_classes)
-            cnn_model.load_weights("models/cnn.hdf5", by_name=False)
+            cnn_model.load_weights(f"models/{cnn_name}.hdf5", by_name=False)
 
             cnn_model.compile(
                 optimizer=keras.optimizers.Adam(learning_rate),
@@ -257,77 +281,50 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
 
         np.savetxt("stacked_dae_accuracies.npy", np.array([stacked_dae_accuracies, stacked_dae_adv_accuracies]))
 
-    # print("Repeating the process, using adversarial training")
-    # # Redefine Keras model
-    # model_2 = ConvNet((n_rows, n_cols, n_channels), n_classes)
-    # model_2(model_2.input)
-    # wrap_2 = KerasModelWrapper(model_2)
-    # fgsm_2 = FastGradientMethod(wrap_2, sess=sess)
-    #
-    # # Use a loss function based on legitimate and adversarial examples
-    # adv_loss_2 = get_adversarial_loss(model_2, fgsm_2, fgsm_params)
-    # adv_acc_metric_2 = get_adversarial_acc_metric(model_2, fgsm_2, fgsm_params)
-    # model_2.compile(
-    #     optimizer=keras.optimizers.Adam(learning_rate),
-    #     loss=adv_loss_2,
-    #     metrics=['accuracy', adv_acc_metric_2]
-    # )
-    #
-    # # Train an MNIST model
-    # model_2.fit(x_train, y_train,
-    #             batch_size=batch_size,
-    #             epochs=num_epochs,
-    #             validation_data=(x_test, y_test),
-    #             verbose=1)
-    #
-    # # Evaluate the accuracy on legitimate and adversarial test examples
-    # _, acc, adv_acc = model_2.evaluate(x_test, y_test,
-    #                                    batch_size=batch_size,
-    #                                    verbose=0)
-    # report.adv_train_clean_eval = acc
-    # report.adv_train_adv_eval = adv_acc
-    # print('Test accuracy on legitimate examples: %0.4f' % acc)
-    # print('Test accuracy on adversarial examples: %0.4f\n' % adv_acc)
-    #
-    # # Calculate training error
-    # if testing:
-    #     _, train_acc, train_adv_acc = model_2.evaluate(x_train, y_train,
-    #                                                    batch_size=batch_size,
-    #                                                    verbose=0)
-    #     report.train_adv_train_clean_eval = train_acc
-    #     report.train_adv_train_adv_eval = train_adv_acc
-
     return report
 
 if __name__ == "__main__":
     # set random seed
     tf.set_random_seed(42)
 
-    # # Train CNN, and save model
-    # run_mnist_adv(num_epochs=1,
-    #               batch_size=BATCH_SIZE,
-    #               learning_rate=LEARNING_RATE,
-    #               run_cnn=True,
-    #               test_dae=False,
-    #               test_stacked_dae=False)
+    # Train CNN, and save model
+    # Also train CNN with adversarial training, and save model
+    run_mnist_adv(num_epochs=NUM_EPOCHS,
+                  batch_size=BATCH_SIZE,
+                  learning_rate=LEARNING_RATE)
+
+    # WITHOUT ADVERSARIAL TRAINING ================================
 
     # Generate adversarial results / accuracies with
     # Denoising Autoencoder preprocessing
-    run_mnist_adv(num_epochs=1,
-                  batch_size=BATCH_SIZE,
-                  learning_rate=LEARNING_RATE,
-                  run_cnn=False, # whether to use train CNN and generate adv examples as you go
+    run_mnist_adv(run_cnn=False, # train CNN
+                  adversarial_training=False,
                   test_dae=True, # test CNN with DAE preprocessing
                   test_stacked_dae=False, # test CNN with Stacked DAE preprocessing
-                  #v_noises=[0.1, 0.2, 0.3, 0.4, 0.5])
-                  v_noises=[0.5])
+                  v_noises=[0.1, 0.2, 0.3, 0.4, 0.5])
 
-    # # Generate adversarial results / accuracies with
-    # # Stacked Denoising Autoencoder preprocessing
-    # run_mnist_adv(num_epochs=1,
-    #               batch_size=BATCH_SIZE,
-    #               learning_rate=LEARNING_RATE,
-    #               run_cnn=False, # whether to use train CNN and generate adv examples as you go
-    #               test_dae=False, # test CNN with DAE preprocessing
-    #               test_stacked_dae=True, # test CNN with Stacked DAE preprocessing
-    #               v_noises=[0.1, 0.2, 0.3, 0.4, 0.5])
+    # Generate adversarial results / accuracies with
+    # Stacked Denoising Autoencoder preprocessing
+    run_mnist_adv(run_cnn=False, # train CNN
+                  adversarial_training=False,
+                  test_dae=False, # test CNN with DAE preprocessing
+                  test_stacked_dae=True, # test CNN with Stacked DAE preprocessing
+                  v_noises=[0.1, 0.2, 0.3, 0.4, 0.5])
+
+    # WITH ADVERSARIAL TRAINING ================================
+
+    # Generate adversarial results / accuracies with
+    # Denoising Autoencoder preprocessing
+    run_mnist_adv(run_cnn=False, # train CNN
+                  adversarial_training=True,
+                  test_dae=True, # test CNN with DAE preprocessing
+                  test_stacked_dae=False, # test CNN with Stacked DAE preprocessing
+                  v_noises=[0.1, 0.2, 0.3, 0.4, 0.5])
+
+    # Generate adversarial results / accuracies with
+    # Stacked Denoising Autoencoder preprocessing
+    run_mnist_adv(run_cnn=False, # train CNN
+                  adversarial_training=True,
+                  test_dae=False, # test CNN with DAE preprocessing
+                  test_stacked_dae=True, # test CNN with Stacked DAE preprocessing
+                  v_noises=[0.1, 0.2, 0.3, 0.4, 0.5])
