@@ -190,23 +190,56 @@ def transfer_weights_stacked_dae(stacked_dae, autoencoders):
 
     return stacked_dae
 
-# def ContractiveAutoencoder(input_shape):
-#     model = Sequential()
-#     model.add(Dense())
-#     model.add(Activation('sigmoid'))
-#     model.add(Dense(np.product(input_shape)))
-#     model.add(Activation('sigmoid'))
-#     return model
-#
-# def contractive_loss(y_pred, y_true):
-#     mse = K.mean(K.square(y_true - y_pred), axis=1)
-#
-#     W = K.variable(value=model.get_layer('encoded').get_weights()[0])  # N x N_hidden
-#     W = K.transpose(W)  # N_hidden x N
-#     h = model.get_layer('encoded').output
-#     dh = h * (1 - h)  # N_batch x N_hidden
-#
-#     # N_batch x N_hidden * N_hidden x 1 = N_batch x 1
-#     contractive = lam * K.sum(dh**2 * K.sum(W**2, axis=1), axis=1)
-#
-#     return mse + contractive
+def ContractiveAutoencoder(input_shape, dense_units=7*7):
+    model = Sequential()
+    model.add(Conv2D(filters=32,
+                     kernel_size=(3, 3),
+                     strides=(1, 1),
+                     padding="same",
+                     input_shape=input_shape))
+    model.add(Activation('relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Conv2D(filters=32,
+                     kernel_size=(3, 3),
+                     strides=(1, 1),
+                     padding="same"))
+    model.add(Activation('relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+
+    # encoded layer
+    model.add(Dense(7 * 7), activation="sigmoid", name='encoded')
+    model.add(Reshape((7, 7)))
+
+    model.add(Conv2DTranspose(filters=64,
+                              kernel_size=(3, 3),
+                              padding="same",
+                              strides=(2,2)))
+    model.add(Activation('relu'))
+    # model.add(Conv2DTranspose(filters=32,
+    #                           kernel_size=(3, 3),
+    #                           padding="same",
+    #                           strides=(2,2)))
+    # model.add(Activation('relu'))
+    model.add(Conv2DTranspose(filters=1,
+                              kernel_size=(3, 3),
+                              padding="same",
+                              strides=(2,2)))
+    model.add(Activation('sigmoid'))
+
+    return model
+
+def get_contractive_loss(model):
+    def contractive_loss(y_pred, y_true):
+        mse = K.mean(K.square(y_true - y_pred), axis=1)
+
+        W = K.variable(value=model.get_layer('encoded').get_weights()[0])  # N x N_hidden
+        W = K.transpose(W)  # N_hidden x N
+        h = model.get_layer('encoded').output
+        dh = h * (1 - h)  # N_batch x N_hidden
+
+        # N_batch x N_hidden * N_hidden x 1 = N_batch x 1
+        contractive = lam * K.sum(dh**2 * K.sum(W**2, axis=1), axis=1)
+
+        return mse + contractive
+
+    return contractive_loss

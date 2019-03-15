@@ -20,6 +20,67 @@ NUM_EPOCHS = 10
 BATCH_SIZE = 64
 LEARNING_RATE = 0.001
 
+def train_cae(num_epochs=NUM_EPOCHS, num_pretrain_epochs=NUM_EPOCHS, batch_size=BATCH_SIZE, testing=False, learning_rate=LEARNING_RATE):
+
+    # can use gpu
+    config = tf.ConfigProto( device_count = {'GPU': 1 , 'CPU': 1} )
+
+    # Create TF session and set Keras backend session as TF
+    sess = tf.Session(config=config)
+    keras.backend.set_session(sess)
+
+    # Get MNIST test data
+    mnist = MNIST()
+    x_train, y_train = mnist.get_set("train")
+    x_test, y_test = mnist.get_set("test")
+
+    # Obtain image params
+    n_rows, n_cols, n_channels = x_train.shape[1:4]
+    n_classes = y_train.shape[1]
+
+    # define TF model graph
+    model = ContractiveAutoencoder((n_rows, n_cols, n_channels))
+    contractive_loss = get_contractive_loss(model)
+    model.compile(
+        optimizer=keras.optimizers.Adam(learning_rate),
+        loss=contractive_loss,
+        metrics=['accuracy']
+    )
+
+    # Train an MNIST model
+    model.fit(x_train, x_train,
+              batch_size=batch_size,
+              epochs=num_epochs,
+              validation_data=(x_test, x_test),
+              verbose=1)
+
+    # Evaluate the accuracy on legitimate and adversarial test examples
+    x_test_reconstruction = model.predict(x_test,
+                                    batch_size=batch_size,
+                                    verbose=0)
+
+    first_img = np.reshape(x_test_reconstruction[0], (28, 28))
+    plt.imsave("temp.png", first_img)
+
+    # # Display the 1st 8 corrupted and denoised images
+    # rows, cols = 10, 30
+    # num = rows * cols
+    # imgs = np.concatenate([x_test[:num], x_test_noisy[:num], x_test_denoised[:num]])
+    # imgs = imgs.reshape((rows * 3, cols, n_rows, n_cols))
+    # imgs = np.vstack(np.split(imgs, rows, axis=1))
+    # imgs = imgs.reshape((rows * 3, -1, n_rows, n_cols))
+    # imgs = np.vstack([np.hstack(i) for i in imgs])
+    # imgs = (imgs * 255).astype(np.uint8)
+    # Image.fromarray(imgs).save('corrupted_and_denoised.png')
+
+    # Save model locally
+    keras.models.save_model(
+        model,
+        f"models/contractive_autoencoder.hdf5",
+        overwrite=True,
+        include_optimizer=True
+    )
+
 def train_stacked_dae(num_epochs=NUM_EPOCHS, num_pretrain_epochs=NUM_EPOCHS, batch_size=BATCH_SIZE, testing=False, learning_rate=LEARNING_RATE, v_noise=0.3):
 
     # can use gpu
@@ -249,8 +310,11 @@ if __name__ == "__main__":
     # set random seed
     tf.set_random_seed(42)
 
-    # Train Denoising Autoencoder Model
-    train_dae(num_epochs=10, testing=False, v_noise=0.35)
+    # Train Contractive Autoencoder
+    train_cae(num_epochs=10, testing=False)
 
-    # Train Denoising Autoencoder Model
-    train_stacked_dae(num_epochs=10, num_pretrain_epochs=2, testing=False, v_noise=0.35)
+    # # Train Denoising Autoencoder Model
+    # train_dae(num_epochs=10, testing=False, v_noise=0.35)
+    #
+    # # Train Denoising Autoencoder Model
+    # train_stacked_dae(num_epochs=10, num_pretrain_epochs=2, testing=False, v_noise=0.35)
