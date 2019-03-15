@@ -21,6 +21,8 @@ Reshape = keras.layers.Reshape
 Input = keras.layers.Input
 Conv2DTranspose = keras.layers.Conv2DTranspose
 
+import keras.backend as K
+
 # def ConvNet(x):
 #     """ConvNet builds the graph for a deep net for classifying digits.
 #     Args:
@@ -69,7 +71,6 @@ def ConvNet(input_shape, num_classes):
     model.add(Flatten())
     model.add(Dense(1024))
     model.add(Activation('relu'))
-    model.add(Dropout(0.5))
     model.add(Dense(num_classes))
     model.add(Activation('softmax'))
     return model
@@ -188,3 +189,24 @@ def transfer_weights_stacked_dae(stacked_dae, autoencoders):
         layer_idx += num_layers
 
     return stacked_dae
+
+# def ContractiveAutoencoder(input_shape):
+#     model = Sequential()
+#     model.add(Dense())
+#     model.add(Activation('sigmoid'))
+#     model.add(Dense(np.product(input_shape)))
+#     model.add(Activation('sigmoid'))
+#     return model
+#
+# def contractive_loss(y_pred, y_true):
+#     mse = K.mean(K.square(y_true - y_pred), axis=1)
+#
+#     W = K.variable(value=model.get_layer('encoded').get_weights()[0])  # N x N_hidden
+#     W = K.transpose(W)  # N_hidden x N
+#     h = model.get_layer('encoded').output
+#     dh = h * (1 - h)  # N_batch x N_hidden
+#
+#     # N_batch x N_hidden * N_hidden x 1 = N_batch x 1
+#     contractive = lam * K.sum(dh**2 * K.sum(W**2, axis=1), axis=1)
+#
+#     return mse + contractive

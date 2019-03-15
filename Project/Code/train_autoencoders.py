@@ -250,7 +250,7 @@ if __name__ == "__main__":
     tf.set_random_seed(42)
 
     # Train Denoising Autoencoder Model
-    train_stacked_dae(num_epochs=30, num_pretrain_epochs=10, testing=False, v_noise=0.3)
+    train_dae(num_epochs=10, testing=False, v_noise=0.35)
 
     # Train Denoising Autoencoder Model
-    train_dae(num_epochs=30, testing=False, v_noise=0.3)
+    train_stacked_dae(num_epochs=10, num_pretrain_epochs=2, testing=False, v_noise=0.35)

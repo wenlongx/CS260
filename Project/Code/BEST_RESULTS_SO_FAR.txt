@@ -1,0 +1,25 @@
+Adv Test Accuracy for DAE vnoise:	0.1: 0.11350
+Adv Test Accuracy for DAE vnoise:	0.2: 0.98640
+Adv Test Accuracy for DAE vnoise:	0.3: 0.98680
+Adv Test Accuracy for DAE vnoise:	0.4: 0.98320
+Adv Test Accuracy for DAE vnoise:	0.5: 0.98190
+Test Accuracy for DAE vnoise:	0.1: 0.11350
+Test Accuracy for DAE vnoise:	0.2: 0.98650
+Test Accuracy for DAE vnoise:	0.3: 0.98700
+Test Accuracy for DAE vnoise:	0.4: 0.98360
+Test Accuracy for DAE vnoise:	0.5: 0.98210
+Adv Test Accuracy for Stacked DAE vnoise:	0.1: 0.98940
+Adv Test Accuracy for Stacked DAE vnoise:	0.2: 0.98930
+Adv Test Accuracy for Stacked DAE vnoise:	0.3: 0.98710
+Adv Test Accuracy for Stacked DAE vnoise:	0.4: 0.98530
+Adv Test Accuracy for Stacked DAE vnoise:	0.5: 0.98190
+Test Accuracy for Stacked DAE vnoise:	0.1: 0.98960
+Test Accuracy for Stacked DAE vnoise:	0.2: 0.98930
+Test Accuracy for Stacked DAE vnoise:	0.3: 0.98740
+Test Accuracy for Stacked DAE vnoise:	0.4: 0.98540
+Test Accuracy for Stacked DAE vnoise:	0.5: 0.98200
+
+for Adam, lr = 0.001
+cnn trained for 20 epochs
+dae for 30 epochs
+stacked dae for 10 pretrain, 30 actual
