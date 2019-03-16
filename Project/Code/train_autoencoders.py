@@ -44,8 +44,10 @@ def train_cae(num_epochs=NUM_EPOCHS, num_pretrain_epochs=NUM_EPOCHS, batch_size=
     model.compile(
         optimizer=keras.optimizers.Adam(learning_rate),
         loss=contractive_loss,
-        metrics=['accuracy']
+        metrics=['mse']
     )
+    model.summary()
+    sess.run(tf.global_variables_initializer())
 
     # Train an MNIST model
     model.fit(x_train, x_train,

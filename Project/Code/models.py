@@ -207,8 +207,10 @@ def ContractiveAutoencoder(input_shape, dense_units=7*7):
     model.add(MaxPooling2D(pool_size=(2, 2)))
 
     # encoded layer
-    model.add(Dense(7 * 7), activation="sigmoid", name='encoded')
-    model.add(Reshape((7, 7)))
+    #model.add(Reshape((7 * 7 * 32, 1)))
+    model.add(Flatten())
+    model.add(Dense(7 * 7 * 32, activation="sigmoid", name='encoded'))
+    model.add(Reshape((7, 7, 32)))
 
     model.add(Conv2DTranspose(filters=64,
                               kernel_size=(3, 3),
@@ -232,6 +234,7 @@ def get_contractive_loss(model):
     def contractive_loss(y_pred, y_true):
         mse = K.mean(K.square(y_true - y_pred), axis=1)
 
+        lam = 1e-4
         W = K.variable(value=model.get_layer('encoded').get_weights()[0])  # N x N_hidden
         W = K.transpose(W)  # N_hidden x N
         h = model.get_layer('encoded').output
