@@ -10,6 +10,7 @@ import numpy as np
 from cleverhans.attacks import FastGradientMethod
 
 Sequential = keras.models.Sequential
+Model = keras.models.Model
 Conv2D = keras.layers.Conv2D
 MaxPooling2D = keras.layers.MaxPooling2D
 Dropout = keras.layers.Dropout
@@ -53,27 +54,36 @@ LEARNING_RATE = 0.001
 
 
 # Define ConvNet model
-def ConvNet(input_shape, num_classes):
-    model = Sequential()
-    model.add(Conv2D(filters=32,
+def ConvNet(input_shape, num_classes, concat=False, concat_layer=None):
+    if not concat:
+        inputs = Input(shape=input_shape)
+    else:
+        inputs = concat_layer
+    x = Conv2D(filters=32,
                      kernel_size=(5, 5),
                      strides=(1, 1),
                      padding="same",
-                     input_shape=input_shape))
-    model.add(Activation('relu'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Conv2D(filters=32,
+                     input_shape=input_shape)(inputs)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2))(x)
+    x = Conv2D(filters=32,
                      kernel_size=(5, 5),
                      strides=(1, 1),
-                     padding="same"))
-    model.add(Activation('relu'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Flatten())
-    model.add(Dense(1024))
-    model.add(Activation('relu'))
-    model.add(Dense(num_classes))
-    model.add(Activation('softmax'))
-    return model
+                     padding="same")(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2))(x)
+    x = Flatten()(x)
+    x = Dense(1024)(x)
+    x = Activation('relu')(x)
+    x = Dense(num_classes)(x)
+    x = Activation('softmax')(x)
+    predictions = x
+
+    if not concat:
+        model = Model(inputs=inputs, outputs=predictions)
+        return model
+    else:
+        return predictions
 
 def get_adversarial_acc_metric(model, fgsm, fgsm_params):
     def adv_acc(y, _):
@@ -121,120 +131,133 @@ def get_adversarial_loss(model, fgsm, fgsm_params):
     return adv_loss
 
 def DenoisingAutoencoder(input_shape):
-    model = Sequential()
-    model.add(Conv2D(filters=32,
+    inputs = Input(shape=input_shape)
+
+    x = Conv2D(filters=32,
                      kernel_size=(3, 3),
                      strides=(1, 1),
                      padding="same",
-                     input_shape=input_shape))
-    model.add(Activation('relu'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Conv2D(filters=32,
+                     input_shape=input_shape)(inputs)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2))(x)
+    x = Conv2D(filters=32,
                      kernel_size=(3, 3),
                      strides=(1, 1),
-                     padding="same"))
-    model.add(Activation('relu'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Conv2DTranspose(filters=64,
+                     padding="same")(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2))(x)
+    x = Conv2DTranspose(filters=64,
                               kernel_size=(3, 3),
                               padding="same",
-                              strides=(2,2)))
-    model.add(Activation('relu'))
-    # model.add(Conv2DTranspose(filters=32,
+                              strides=(2,2))(x)
+    x = Activation('relu')(x)
+    # x = Conv2DTranspose(filters=32,
     #                           kernel_size=(3, 3),
     #                           padding="same",
     #                           strides=(2,2)))
-    # model.add(Activation('relu'))
-    model.add(Conv2DTranspose(filters=1,
+    # x = Activation('relu'))
+    x = Conv2DTranspose(filters=1,
                               kernel_size=(3, 3),
                               padding="same",
-                              strides=(2,2)))
-    model.add(Activation('sigmoid'))
+                              strides=(2,2))(x)
+    x = Activation('sigmoid')(x)
+
+    predictions = x
+    model = Model(inputs=inputs, outputs=predictions)
+
     return model
 
 def StackedDenoisingAutoencoder(input_shape, num_stacks=3):
-    model = Sequential()
+    inputs = Input(shape=input_shape)
+    x = inputs
     for i in range(num_stacks):
-        model.add(Conv2D(filters=32,
+        x = Conv2D(filters=32,
                          kernel_size=(3, 3),
                          strides=(1, 1),
                          padding="same",
-                         input_shape=input_shape))
-        model.add(Activation('relu'))
-        model.add(MaxPooling2D(pool_size=(2, 2)))
-        model.add(Conv2D(filters=32,
+                         input_shape=input_shape)(x)
+        x = Activation('relu')(x)
+        x = MaxPooling2D(pool_size=(2, 2))(x)
+        x = Conv2D(filters=32,
                          kernel_size=(3, 3),
                          strides=(1, 1),
-                         padding="same"))
-        model.add(Activation('relu'))
-        model.add(MaxPooling2D(pool_size=(2, 2)))
-        model.add(Conv2DTranspose(filters=64,
+                         padding="same")(x)
+        x = Activation('relu')(x)
+        x = MaxPooling2D(pool_size=(2, 2))(x)
+        x = Conv2DTranspose(filters=64,
                                   kernel_size=(3, 3),
                                   padding="same",
-                                  strides=(2,2)))
-        model.add(Activation('relu'))
-        model.add(Conv2DTranspose(filters=1,
+                                  strides=(2,2))(x)
+        x = Activation('relu')(x)
+        x = Conv2DTranspose(filters=1,
                                   kernel_size=(3, 3),
                                   padding="same",
-                                  strides=(2,2)))
-        model.add(Activation('sigmoid'))
+                                  strides=(2,2))(x)
+        x = Activation('sigmoid')(x)
+    predictions = x
+    model = Model(inputs=inputs, outputs=predictions)
     return model
 
 def transfer_weights_stacked_dae(stacked_dae, autoencoders):
-    num_layers = len(autoencoders[0].layers)
-    layer_idx = 0
-    for autoencoder in autoencoders:
-        for i in range(num_layers):
-            stacked_dae.layers[layer_idx + i].set_weights(autoencoder.layers[i].get_weights())
-        layer_idx += num_layers
+    num_layers = len(autoencoders[0].layers) - 1
+    for encoder_idx, encoder in enumerate(autoencoders):
+        for layer_idx, layer in enumerate(encoder.layers):
+            if layer_idx == 0 and encoder_idx != 0:
+                continue
+            combined_idx = encoder_idx * num_layers + layer_idx
+            weights = autoencoders[encoder_idx].layers[layer_idx].get_weights()
+            stacked_dae.layers[combined_idx].set_weights(weights)
 
     return stacked_dae
 
 def ContractiveAutoencoder(input_shape, dense_units=7*7):
-    model = Sequential()
-    model.add(Conv2D(filters=32,
+    inputs = Input(shape=input_shape)
+    x = inputs
+    x = Conv2D(filters=32,
                      kernel_size=(3, 3),
                      strides=(1, 1),
                      padding="same",
-                     input_shape=input_shape))
-    model.add(Activation('relu'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Conv2D(filters=32,
+                     input_shape=input_shape)(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2))(x)
+    x = Conv2D(filters=32,
                      kernel_size=(3, 3),
                      strides=(1, 1),
-                     padding="same"))
-    model.add(Activation('relu'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
+                     padding="same")(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2))(x)
 
     # encoded layer
-    #model.add(Reshape((7 * 7 * 32, 1)))
-    model.add(Flatten())
-    model.add(Dense(7 * 7 * 32, activation="sigmoid", name='encoded'))
-    model.add(Reshape((7, 7, 32)))
+    #x = Reshape((7 * 7 * 32, 1)))
+    x = Flatten()(x)
+    x = Dense(7 * 7 * 32, activation="sigmoid", name='encoded')(x)
+    x = Reshape((7, 7, 32))(x)
 
-    model.add(Conv2DTranspose(filters=64,
+    x = Conv2DTranspose(filters=64,
                               kernel_size=(3, 3),
                               padding="same",
-                              strides=(2,2)))
-    model.add(Activation('relu'))
-    # model.add(Conv2DTranspose(filters=32,
+                              strides=(2,2))(x)
+    x = Activation('relu')(x)
+    # x = Conv2DTranspose(filters=32,
     #                           kernel_size=(3, 3),
     #                           padding="same",
     #                           strides=(2,2)))
-    # model.add(Activation('relu'))
-    model.add(Conv2DTranspose(filters=1,
+    # x = Activation('relu'))
+    x = Conv2DTranspose(filters=1,
                               kernel_size=(3, 3),
                               padding="same",
-                              strides=(2,2)))
-    model.add(Activation('sigmoid'))
+                              strides=(2,2))(x)
+    x = Activation('sigmoid')(x)
+
+    predictions = x
+    model = Model(inputs=inputs, outputs=predictions)
 
     return model
 
-def get_contractive_loss(model):
+def get_contractive_loss(model, lam):
     def contractive_loss(y_pred, y_true):
         mse = K.mean(K.square(y_true - y_pred), axis=1)
 
-        lam = 1e-4
         W = K.variable(value=model.get_layer('encoded').get_weights()[0])  # N x N_hidden
         W = K.transpose(W)  # N_hidden x N
         h = model.get_layer('encoded').output

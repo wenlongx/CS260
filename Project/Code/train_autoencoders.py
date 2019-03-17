@@ -20,7 +20,7 @@ NUM_EPOCHS = 10
 BATCH_SIZE = 64
 LEARNING_RATE = 0.001
 
-def train_cae(num_epochs=NUM_EPOCHS, num_pretrain_epochs=NUM_EPOCHS, batch_size=BATCH_SIZE, testing=False, learning_rate=LEARNING_RATE):
+def train_cae(num_epochs=NUM_EPOCHS, num_pretrain_epochs=NUM_EPOCHS, batch_size=BATCH_SIZE, testing=False, learning_rate=LEARNING_RATE, lam=1e-4):
 
     # can use gpu
     config = tf.ConfigProto( device_count = {'GPU': 1 , 'CPU': 1} )
@@ -40,7 +40,7 @@ def train_cae(num_epochs=NUM_EPOCHS, num_pretrain_epochs=NUM_EPOCHS, batch_size=
 
     # define TF model graph
     model = ContractiveAutoencoder((n_rows, n_cols, n_channels))
-    contractive_loss = get_contractive_loss(model)
+    contractive_loss = get_contractive_loss(model, lam)
     model.compile(
         optimizer=keras.optimizers.Adam(learning_rate),
         loss=contractive_loss,
@@ -78,12 +78,12 @@ def train_cae(num_epochs=NUM_EPOCHS, num_pretrain_epochs=NUM_EPOCHS, batch_size=
     # Save model locally
     keras.models.save_model(
         model,
-        f"models/contractive_autoencoder.hdf5",
+        f"models/contractive_autoencoder_{lam}.hdf5",
         overwrite=True,
-        include_optimizer=True
+        include_optimizer=False
     )
 
-def train_stacked_dae(num_epochs=NUM_EPOCHS, num_pretrain_epochs=NUM_EPOCHS, batch_size=BATCH_SIZE, testing=False, learning_rate=LEARNING_RATE, v_noise=0.3):
+def train_stacked_dae(num_epochs=NUM_EPOCHS, num_pretrain_epochs=NUM_EPOCHS, batch_size=BATCH_SIZE, testing=False, learning_rate=LEARNING_RATE, v_noise=0.3, num_stacks=3):
 
     # can use gpu
     config = tf.ConfigProto( device_count = {'GPU': 1 , 'CPU': 1} )
@@ -97,111 +97,60 @@ def train_stacked_dae(num_epochs=NUM_EPOCHS, num_pretrain_epochs=NUM_EPOCHS, bat
     x_train, y_train = mnist.get_set("train")
     x_test, y_test = mnist.get_set("test")
 
-    # corrupt inputs
-    noise_train = v_noise * np.random.normal(size=x_train.shape)
-    noise_test = v_noise * np.random.normal(size=x_test.shape)
-    x_train_noisy = np.clip(x_train + noise_train, 0.0, 1.0)
-    x_test_noisy = np.clip(x_test + noise_test, 0.0, 1.0)
+    def corrupt(x):
+        noisy_x = v_noise * np.random.normal(size=x.shape)
+        return np.clip(x + noisy_x, 0.0, 1.0)
 
     # Obtain image params
     n_rows, n_cols, n_channels = x_train.shape[1:4]
     n_classes = y_train.shape[1]
 
-    # ================================================================
-    # Pretrain first autoencoder later
-    # define TF model graph
-    model_1 = DenoisingAutoencoder((n_rows, n_cols, n_channels))
-    model_1.compile(
-        optimizer=keras.optimizers.Adam(learning_rate),
-        loss='mse'
-    )
-    # Train an MNIST model
-    model_1.fit(x_train_noisy, x_train,
-                batch_size=batch_size,
-                epochs=num_pretrain_epochs,
-                validation_data=(x_test_noisy, x_test),
-                verbose=1)
 
-    # Evaluate the accuracy on legitimate and adversarial test examples
-    x_train_denoised_1 = model_1.predict(x_train_noisy,
-                                    batch_size=batch_size,
-                                    verbose=0)
-    # Evaluate the accuracy on legitimate and adversarial test examples
-    x_test_denoised_1 = model_1.predict(x_test_noisy,
-                                    batch_size=batch_size,
-                                    verbose=0)
+    # Pretrain the autoencoders
+    models = []
+    x_trains = [x_train]
+    x_tests = [x_test]
+    for i in range(num_stacks):
+        # generate corrupted inputs
+        x_train_noisy = corrupt(x_trains[i])
+        x_test_noisy = corrupt(x_tests[i])
 
-    # ================================================================
-    # Pretrain second autoencoder later
+        # Pretrain first autoencoder
+        # define TF model graph
+        model = DenoisingAutoencoder((n_rows, n_cols, n_channels))
+        model.compile(
+            optimizer=keras.optimizers.Adam(learning_rate),
+            loss='mse'
+        )
+        models.append(model)
+        # pretrain on MNIST 
+        models[i].fit(x_train_noisy, x_trains[i],
+                    batch_size=batch_size,
+                    epochs=num_pretrain_epochs,
+                    validation_data=(x_test_noisy, x_tests[i]),
+                    verbose=1)
 
-    # corrupt inputs
-    noise_train_2 = v_noise * np.random.normal(size=x_train.shape)
-    noise_test_2 = v_noise * np.random.normal(size=x_test.shape)
-    x_train_noisy_2 = np.clip(x_train_denoised_1 + noise_train_2, 0.0, 1.0)
-    x_test_noisy_2 = np.clip(x_test_denoised_1 + noise_test_2, 0.0, 1.0)
+        # Evaluate the accuracy on legitimate and adversarial test examples
+        x_train_denoised = models[i].predict(x_train_noisy,
+                                        batch_size=batch_size,
+                                        verbose=0)
+        # Evaluate the accuracy on legitimate and adversarial test examples
+        x_test_denoised = models[i].predict(x_test_noisy,
+                                        batch_size=batch_size,
+                                        verbose=0)
 
-    # define TF model graph
-    model_2 = DenoisingAutoencoder((n_rows, n_cols, n_channels))
-    model_2.compile(
-        optimizer=keras.optimizers.Adam(learning_rate),
-        loss='mse'
-    )
-    # Train an MNIST model
-    model_2.fit(x_train_noisy_2, x_train_denoised_1,
-                batch_size=batch_size,
-                epochs=num_pretrain_epochs,
-                validation_data=(x_test_noisy_2, x_test_denoised_1),
-                verbose=1)
-
-    # Evaluate the accuracy on legitimate and adversarial test examples
-    x_train_denoised_2 = model_2.predict(x_train_noisy_2,
-                                    batch_size=batch_size,
-                                    verbose=0)
-    # Evaluate the accuracy on legitimate and adversarial test examples
-    x_test_denoised_2 = model_2.predict(x_test_noisy_2,
-                                    batch_size=batch_size,
-                                    verbose=0)
-
-    # ================================================================
-    # Pretrain third autoencoder later
-
-    # corrupt inputs
-    noise_train_3 = v_noise * np.random.normal(size=x_train.shape)
-    noise_test_3 = v_noise * np.random.normal(size=x_test.shape)
-    x_train_noisy_3 = np.clip(x_train_denoised_2 + noise_train_3, 0.0, 1.0)
-    x_test_noisy_3 = np.clip(x_test_denoised_2 + noise_test_3, 0.0, 1.0)
-
-    # define TF model graph
-    model_3 = DenoisingAutoencoder((n_rows, n_cols, n_channels))
-    model_3.compile(
-        optimizer=keras.optimizers.Adam(learning_rate),
-        loss='mse'
-    )
-    # Train an MNIST model
-    model_3.fit(x_train_noisy_3, x_train_denoised_2,
-                batch_size=batch_size,
-                epochs=num_pretrain_epochs,
-                validation_data=(x_test_noisy_3, x_test_denoised_2),
-                verbose=1)
-
-    # Evaluate the accuracy on legitimate and adversarial test examples
-    x_train_denoised_3 = model_3.predict(x_train_noisy_3,
-                                    batch_size=batch_size,
-                                    verbose=0)
-    # Evaluate the accuracy on legitimate and adversarial test examples
-    x_test_denoised_3 = model_3.predict(x_test_noisy_3,
-                                    batch_size=batch_size,
-                                    verbose=0)
+        x_trains.append(x_train_denoised)
+        x_tests.append(x_test_denoised)
 
     # ================================================================
     # Create Stacked Denoising Autoencoder
     # define TF model graph
-    model = StackedDenoisingAutoencoder((n_rows, n_cols, n_channels), 3)
+    model = StackedDenoisingAutoencoder((n_rows, n_cols, n_channels), num_stacks=num_stacks)
     model.compile(
         optimizer=keras.optimizers.Adam(learning_rate),
         loss='mse'
     )
-    model = transfer_weights_stacked_dae(model, [model_1, model_2, model_3])
+    model = transfer_weights_stacked_dae(model, models)
 
     # Train an MNIST model
     model.fit(x_train_noisy, x_train,
@@ -209,6 +158,9 @@ def train_stacked_dae(num_epochs=NUM_EPOCHS, num_pretrain_epochs=NUM_EPOCHS, bat
                 epochs=num_epochs,
                 validation_data=(x_test_noisy, x_test),
                 verbose=1)
+
+    x_train_noisy = corrupt(x_train)
+    x_test_noisy = corrupt(x_test)
 
     # Evaluate the accuracy on legitimate and adversarial test examples
     x_train_denoised = model.predict(x_train_noisy,
@@ -222,21 +174,21 @@ def train_stacked_dae(num_epochs=NUM_EPOCHS, num_pretrain_epochs=NUM_EPOCHS, bat
     first_img = np.reshape(x_test_denoised[0], (28, 28))
     plt.imsave("temp.png", first_img)
 
-    # Display the 1st 8 corrupted and denoised images
-    rows, cols = 10, 30
-    num = rows * cols
-    imgs = np.concatenate([x_test[:num], x_test_noisy[:num], x_test_denoised[:num]])
-    imgs = imgs.reshape((rows * 3, cols, n_rows, n_cols))
-    imgs = np.vstack(np.split(imgs, rows, axis=1))
-    imgs = imgs.reshape((rows * 3, -1, n_rows, n_cols))
-    imgs = np.vstack([np.hstack(i) for i in imgs])
-    imgs = (imgs * 255).astype(np.uint8)
-    Image.fromarray(imgs).save('corrupted_and_denoised.png')
+    # # Display the 1st 8 corrupted and denoised images
+    # rows, cols = 10, 30
+    # num = rows * cols
+    # imgs = np.concatenate([x_test[:num], x_test_noisy[:num], x_test_denoised[:num]])
+    # imgs = imgs.reshape((rows * 3, cols, n_rows, n_cols))
+    # imgs = np.vstack(np.split(imgs, rows, axis=1))
+    # imgs = imgs.reshape((rows * 3, -1, n_rows, n_cols))
+    # imgs = np.vstack([np.hstack(i) for i in imgs])
+    # imgs = (imgs * 255).astype(np.uint8)
+    # Image.fromarray(imgs).save('corrupted_and_denoised.png')
 
     # Save model locally
     keras.models.save_model(
         model,
-        f"models/stacked_denoising_autoencoder_{v_noise}.hdf5",
+        f"models/stacked_denoising_autoencoder_{num_stacks}_{v_noise}.hdf5",
         overwrite=True,
         include_optimizer=True
     )
@@ -312,11 +264,15 @@ if __name__ == "__main__":
     # set random seed
     tf.set_random_seed(42)
 
-    # Train Contractive Autoencoder
-    train_cae(num_epochs=10, testing=False)
+    # # Train Contractive Autoencoder
+    # for lam in [1e-5, 1e-4, 1e-3, 1e-2, 1e-1]:
+    #     train_cae(num_epochs=10, testing=False, lam=lam)
 
-    # Train Denoising Autoencoder Model
-    train_dae(num_epochs=10, testing=False, v_noise=0.35)
+    # # Train Denoising Autoencoder Model
+    # for v_noise in [0.1, 0.2, 0.3, 0.4, 0.5]:
+    #     train_dae(num_epochs=10, testing=False, v_noise=v_noise)
 
-    # Train Denoising Autoencoder Model
-    train_stacked_dae(num_epochs=10, num_pretrain_epochs=2, testing=False, v_noise=0.35)
+    # Train Stacked Denoising Autoencoder Models
+    for num_stacks in [2, 3]:
+        for v_noise in [0.1, 0.2, 0.3, 0.4, 0.5]:
+            train_stacked_dae(num_epochs=30, num_pretrain_epochs=10, testing=False, v_noise=v_noise, num_stacks=num_stacks)
