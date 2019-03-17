@@ -115,7 +115,7 @@ def train_stacked_dae(num_epochs=NUM_EPOCHS, num_pretrain_epochs=NUM_EPOCHS, bat
         x_train_noisy = corrupt(x_trains[i])
         x_test_noisy = corrupt(x_tests[i])
 
-        pretrain_layer_path = f"models/pretrain_sdae_layer_{i}.hdf5"
+        pretrain_layer_path = f"models/pretrain_sdae_layer_{i}_{v_noise}.hdf5"
 
         if tf.gfile.Exists(pretrain_layer_path):
             model = keras.models.load(pretrain_layer_path)
@@ -131,7 +131,7 @@ def train_stacked_dae(num_epochs=NUM_EPOCHS, num_pretrain_epochs=NUM_EPOCHS, bat
             )
 
             # pretrain on MNIST 
-            models[i].fit(x_train_noisy, x_trains[i],
+            model.fit(x_train_noisy, x_trains[i],
                         batch_size=batch_size,
                         epochs=num_pretrain_epochs,
                         validation_data=(x_test_noisy, x_tests[i]),
@@ -143,7 +143,7 @@ def train_stacked_dae(num_epochs=NUM_EPOCHS, num_pretrain_epochs=NUM_EPOCHS, bat
                 pretrain_layer_path,
                 overwrite=True,
                 include_optimizer=True,
-            }
+            )
 
         models.append(model)
 
