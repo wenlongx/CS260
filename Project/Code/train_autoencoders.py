@@ -115,20 +115,37 @@ def train_stacked_dae(num_epochs=NUM_EPOCHS, num_pretrain_epochs=NUM_EPOCHS, bat
         x_train_noisy = corrupt(x_trains[i])
         x_test_noisy = corrupt(x_tests[i])
 
-        # Pretrain first autoencoder
-        # define TF model graph
-        model = DenoisingAutoencoder((n_rows, n_cols, n_channels))
-        model.compile(
-            optimizer=keras.optimizers.Adam(learning_rate),
-            loss='mse'
-        )
+        pretrain_layer_path = f"models/pretrain_sdae_layer_{i}.hdf5"
+
+        if tf.gfile.Exists(pretrain_layer_path):
+            model = keras.models.load(pretrain_layer_path)
+
+        else:
+            # Pretrain autoencoder
+            # define TF model graph
+            model = DenoisingAutoencoder((n_rows, n_cols, n_channels))
+
+            model.compile(
+                optimizer=keras.optimizers.Adam(learning_rate),
+                loss='mse'
+            )
+
+            # pretrain on MNIST 
+            models[i].fit(x_train_noisy, x_trains[i],
+                        batch_size=batch_size,
+                        epochs=num_pretrain_epochs,
+                        validation_data=(x_test_noisy, x_tests[i]),
+                        verbose=1)
+
+            # save the pretrained model for use in later ones
+            keras.models.save_model(
+                model,
+                pretrain_layer_path,
+                overwrite=True,
+                include_optimizer=True,
+            }
+
         models.append(model)
-        # pretrain on MNIST 
-        models[i].fit(x_train_noisy, x_trains[i],
-                    batch_size=batch_size,
-                    epochs=num_pretrain_epochs,
-                    validation_data=(x_test_noisy, x_tests[i]),
-                    verbose=1)
 
         # Evaluate the accuracy on legitimate and adversarial test examples
         x_train_denoised = models[i].predict(x_train_noisy,
