@@ -25,6 +25,9 @@ NUM_EPOCHS = 20
 BATCH_SIZE = 64
 LEARNING_RATE = 0.002
 
+# MODEL_PATH = "models"
+MODEL_PATH = "20_epochs"
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 def run_mnist_adv(num_epochs=NUM_EPOCHS,
@@ -37,7 +40,8 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
                   test_dae=False, # test CNN with DAE preprocessing
                   test_stacked_dae=False, # test CNN with Stacked DAE preprocessing
                   v_noises=[0.1, 0.2, 0.3, 0.4, 0.5],
-                  lambdas=[1e-5, 1e-4, 1e-3, 1e-2, 1e-1]):
+                  lambdas=[1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
+                  num_stacks=3):
 
     # ======================================================================
     # General Setup
@@ -165,7 +169,7 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
     # ======================================================================
     if test_cnn:
         cnn_model = ConvNet((n_rows, n_cols, n_channels), n_classes)
-        cnn_model.load_weights(f"models/cnn_backup.hdf5", by_name=False)
+        cnn_model.load_weights(f"{MODEL_PATH}/cnn_backup.hdf5", by_name=False)
         cnn_model(cnn_model.input)
         wrap = KerasModelWrapper(cnn_model)
         fgsm = FastGradientMethod(wrap, sess=sess)
@@ -205,7 +209,7 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
         for lam in lambdas:
             # define TF model graph
             cnn_model = ConvNet((n_rows, n_cols, n_channels), n_classes)
-            cnn_model.load_weights(f"models/{cnn_name}.hdf5", by_name=False)
+            cnn_model.load_weights(f"{MODEL_PATH}/{cnn_name}.hdf5", by_name=False)
             cnn_model(cnn_model.input)
 
             wrap = KerasModelWrapper(cnn_model)
@@ -216,7 +220,7 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
                 'clip_max': 1.
             }
 
-            cae_model = keras.models.load_model(f"models/contractive_autoencoder_{lam}.hdf5")
+            cae_model = keras.models.load_model(f"{MODEL_PATH}/contractive_autoencoder_{lam}.hdf5")
 
             cae_metric = get_adversarial_acc_with_preprocess_metric(cnn_model, cae_model, fgsm, fgsm_params)
             cnn_model.compile(
@@ -236,7 +240,7 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
         for lam in lambdas:
             # define TF model graph
             cnn_model = ConvNet((n_rows, n_cols, n_channels), n_classes)
-            cnn_model.load_weights(f"models/{cnn_name}.hdf5", by_name=False)
+            cnn_model.load_weights(f"{MODEL_PATH}/{cnn_name}.hdf5", by_name=False)
             cnn_model(cnn_model.input)
 
             wrap = KerasModelWrapper(cnn_model)
@@ -247,7 +251,7 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
                 'clip_max': 1.
             }
 
-            cae_model = keras.models.load_model(f"models/contractive_autoencoder_{lam}.hdf5")
+            cae_model = keras.models.load_model(f"{MODEL_PATH}/contractive_autoencoder_{lam}.hdf5")
 
             cnn_model.compile(
                 optimizer=keras.optimizers.Adam(learning_rate),
@@ -276,7 +280,7 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
         for v_noise in v_noises:
             # define TF model graph
             cnn_model = ConvNet((n_rows, n_cols, n_channels), n_classes)
-            cnn_model.load_weights(f"models/{cnn_name}.hdf5", by_name=False)
+            cnn_model.load_weights(f"{MODEL_PATH}/{cnn_name}.hdf5", by_name=False)
             cnn_model(cnn_model.input)
 
             wrap = KerasModelWrapper(cnn_model)
@@ -287,7 +291,7 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
                 'clip_max': 1.
             }
 
-            dae_model = keras.models.load_model(f"models/denoising_autoencoder_{v_noise}.hdf5")
+            dae_model = keras.models.load_model(f"{MODEL_PATH}/denoising_autoencoder_{v_noise}.hdf5")
 
             dae_metric = get_adversarial_acc_with_preprocess_metric(cnn_model, dae_model, fgsm, fgsm_params)
 
@@ -306,11 +310,11 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
 
         for v_noise in v_noises:
 
-            dae_model = keras.models.load_model(f"models/denoising_autoencoder_{v_noise}.hdf5")
+            dae_model = keras.models.load_model(f"{MODEL_PATH}/denoising_autoencoder_{v_noise}.hdf5")
 
             # define TF model graph
             cnn_model = ConvNet((n_rows, n_cols, n_channels), n_classes)
-            cnn_model.load_weights(f"models/{cnn_name}.hdf5", by_name=False)
+            cnn_model.load_weights(f"{MODEL_PATH}/{cnn_name}.hdf5", by_name=False)
 
             cnn_model.compile(
                 optimizer=keras.optimizers.Adam(learning_rate),
@@ -337,7 +341,7 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
         for v_noise in v_noises:
             # define TF model graph
             cnn_model = ConvNet((n_rows, n_cols, n_channels), n_classes)
-            cnn_model.load_weights(f"models/{cnn_name}.hdf5", by_name=False)
+            cnn_model.load_weights(f"{MODEL_PATH}/{cnn_name}.hdf5", by_name=False)
             cnn_model(cnn_model.input)
 
             wrap = KerasModelWrapper(cnn_model)
@@ -348,7 +352,7 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
                 'clip_max': 1.
             }
 
-            stacked_dae_model = keras.models.load_model(f"models/stacked_denoising_autoencoder_{v_noise}.hdf5")
+            stacked_dae_model = keras.models.load_model(f"{MODEL_PATH}/stacked_denoising_autoencoder_{num_stacks}_{v_noise}.hdf5")
 
             stacked_dae_metric = get_adversarial_acc_with_preprocess_metric(cnn_model, stacked_dae_model, fgsm, fgsm_params)
 
@@ -362,16 +366,16 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
             _, adv_acc = cnn_model.evaluate(x_test, y_test,
                                              batch_size=batch_size,
                                              verbose=0)
-            print(f"Adv Test Accuracy for Stacked DAE vnoise:\t{v_noise:.1f}: {adv_acc:.5f}")
+            print(f"Adv Test Accuracy for {num_stacks} Stacked DAE vnoise:\t{v_noise:.1f}: {adv_acc:.5f}")
             stacked_dae_adv_accuracies.append(adv_acc)
 
         for v_noise in v_noises:
 
-            stacked_dae_model = keras.models.load_model(f"models/stacked_denoising_autoencoder_{v_noise}.hdf5")
+            stacked_dae_model = keras.models.load_model(f"{MODEL_PATH}/stacked_denoising_autoencoder_{num_stacks}_{v_noise}.hdf5")
 
             # define TF model graph
             cnn_model = ConvNet((n_rows, n_cols, n_channels), n_classes)
-            cnn_model.load_weights(f"models/{cnn_name}.hdf5", by_name=False)
+            cnn_model.load_weights(f"{MODEL_PATH}/{cnn_name}.hdf5", by_name=False)
 
             cnn_model.compile(
                 optimizer=keras.optimizers.Adam(learning_rate),
@@ -384,7 +388,7 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
             _, acc = cnn_model.evaluate(x_denoised, y_test,
                                              batch_size=batch_size,
                                              verbose=0)
-            print(f"Test Accuracy for Stacked DAE vnoise:\t{v_noise:.1f}: {acc:.5f}")
+            print(f"Test Accuracy for {num_stacks} Stacked DAE vnoise:\t{v_noise:.1f}: {acc:.5f}")
             stacked_dae_accuracies.append(acc)
 
         np.savetxt("stacked_dae_accuracies.npy", np.array([stacked_dae_accuracies, stacked_dae_adv_accuracies]))
@@ -441,16 +445,6 @@ if __name__ == "__main__":
 
     # Generate adversarial results / accuracies with
     # Stacked Denoising Autoencoder preprocessing (stack of 3)
-    run_mnist_adv(run_cnn=False, # train CNN
-                  adversarial_training=False,
-                  test_cae=False, # test CNN with CAE preprocessing
-                  test_dae=False, # test CNN with DAE preprocessing
-                  test_stacked_dae=True, # test CNN with Stacked DAE preprocessing
-                  num_stacks=3,
-                  v_noises=[0.1, 0.2, 0.3, 0.4, 0.5])
-
-    # Generate adversarial results / accuracies with
-    # Stacked Denoising Autoencoder preprocessing (stack of 4)
     run_mnist_adv(run_cnn=False, # train CNN
                   adversarial_training=False,
                   test_cae=False, # test CNN with CAE preprocessing

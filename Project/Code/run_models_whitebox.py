@@ -25,6 +25,9 @@ NUM_EPOCHS = 20
 BATCH_SIZE = 64
 LEARNING_RATE = 0.002
 
+# MODEL_PATH = "models"
+MODEL_PATH = "20_epochs"
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 def run_mnist_adv(num_epochs=NUM_EPOCHS,
@@ -34,7 +37,8 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
                   test_dae=False, # test CNN with DAE preprocessing
                   test_stacked_dae=False, # test CNN with Stacked DAE preprocessing
                   v_noises=[0.1, 0.2, 0.3, 0.4, 0.5],
-                  lambdas=[1e-5, 1e-4, 1e-3, 1e-2, 1e-1]):
+                  lambdas=[1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
+                  num_stacks=3):
 
     # ======================================================================
     # General Setup
@@ -70,7 +74,7 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
         cae_accuracies = []
         for lam in lambdas:
             cae_model = ContractiveAutoencoder((n_rows, n_cols, n_channels))
-            cae_model.load_weights(f"models/contractive_autoencoder_{lam}.hdf5", by_name=False)
+            cae_model.load_weights(f"{MODEL_PATH}/contractive_autoencoder_{lam}.hdf5", by_name=False)
 
             final_out = ConvNet((n_rows, n_cols, n_channels), n_classes, concat=True, concat_layer = cae_model.output)
 
@@ -78,7 +82,7 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
                                    outputs=final_out)
 
             cnn_model = ConvNet((n_rows, n_cols, n_channels), n_classes)
-            cnn_model.load_weights(f"models/{cnn_name}.hdf5", by_name=False)
+            cnn_model.load_weights(f"{MODEL_PATH}/{cnn_name}.hdf5", by_name=False)
 
             num_cae_layers = len(cae_model.layers)
             num_cnn_layers = len(cnn_model.layers)
@@ -126,7 +130,7 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
         dae_accuracies = []
         for v_noise in v_noises:
             dae_model = DenoisingAutoencoder((n_rows, n_cols, n_channels))
-            dae_model.load_weights(f"models/denoising_autoencoder_{v_noise}.hdf5", by_name=False)
+            dae_model.load_weights(f"{MODEL_PATH}/denoising_autoencoder_{v_noise}.hdf5", by_name=False)
 
             final_out = ConvNet((n_rows, n_cols, n_channels), n_classes, concat=True, concat_layer = dae_model.output)
 
@@ -134,7 +138,7 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
                                    outputs=final_out)
 
             cnn_model = ConvNet((n_rows, n_cols, n_channels), n_classes)
-            cnn_model.load_weights(f"models/{cnn_name}.hdf5", by_name=False)
+            cnn_model.load_weights(f"{MODEL_PATH}/{cnn_name}.hdf5", by_name=False)
 
             num_dae_layers = len(dae_model.layers)
             num_cnn_layers = len(cnn_model.layers)
@@ -181,8 +185,8 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
         stacked_dae_adv_accuracies = []
         stacked_dae_accuracies = []
         for v_noise in v_noises:
-            stacked_dae_model = StackedDenoisingAutoencoder((n_rows, n_cols, n_channels), 3)
-            stacked_dae_model.load_weights(f"models/stacked_denoising_autoencoder_{v_noise}.hdf5", by_name=False)
+            stacked_dae_model = StackedDenoisingAutoencoder((n_rows, n_cols, n_channels), num_stacks)
+            stacked_dae_model.load_weights(f"{MODEL_PATH}/stacked_denoising_autoencoder_{num_stacks}_{v_noise}.hdf5", by_name=False)
 
             final_out = ConvNet((n_rows, n_cols, n_channels), n_classes, concat=True, concat_layer = stacked_dae_model.output)
 
@@ -190,7 +194,7 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
                                    outputs=final_out)
 
             cnn_model = ConvNet((n_rows, n_cols, n_channels), n_classes)
-            cnn_model.load_weights(f"models/{cnn_name}.hdf5", by_name=False)
+            cnn_model.load_weights(f"{MODEL_PATH}/{cnn_name}.hdf5", by_name=False)
 
             num_stacked_dae_layers = len(stacked_dae_model.layers)
             num_cnn_layers = len(cnn_model.layers)
@@ -253,8 +257,17 @@ if __name__ == "__main__":
                   v_noises=[0.1, 0.2, 0.3, 0.4, 0.5])
 
     # Generate adversarial results / accuracies with
-    # Stacked Denoising Autoencoder preprocessing
+    # Stacked Denoising Autoencoder preprocessing (stack of 2)
     run_mnist_adv(test_cae=False, # test CNN with CAE preprocessing
                   test_dae=False, # test CNN with DAE preprocessing
                   test_stacked_dae=True, # test CNN with Stacked DAE preprocessing
+                  num_stacks=2,
+                  v_noises=[0.1, 0.2, 0.3, 0.4, 0.5])
+
+    # Generate adversarial results / accuracies with
+    # Stacked Denoising Autoencoder preprocessing (stack of 3)
+    run_mnist_adv(test_cae=False, # test CNN with CAE preprocessing
+                  test_dae=False, # test CNN with DAE preprocessing
+                  test_stacked_dae=True, # test CNN with Stacked DAE preprocessing
+                  num_stacks=3,
                   v_noises=[0.1, 0.2, 0.3, 0.4, 0.5])

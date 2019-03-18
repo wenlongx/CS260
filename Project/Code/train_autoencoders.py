@@ -20,6 +20,8 @@ NUM_EPOCHS = 10
 BATCH_SIZE = 64
 LEARNING_RATE = 0.001
 
+MODEL_PATH = "models"
+
 def train_cae(num_epochs=NUM_EPOCHS, num_pretrain_epochs=NUM_EPOCHS, batch_size=BATCH_SIZE, testing=False, learning_rate=LEARNING_RATE, lam=1e-4):
 
     # can use gpu
@@ -78,7 +80,7 @@ def train_cae(num_epochs=NUM_EPOCHS, num_pretrain_epochs=NUM_EPOCHS, batch_size=
     # Save model locally
     keras.models.save_model(
         model,
-        f"models/contractive_autoencoder_{lam}.hdf5",
+        f"{MODEL_PATH}/contractive_autoencoder_{lam}.hdf5",
         overwrite=True,
         include_optimizer=False
     )
@@ -115,7 +117,7 @@ def train_stacked_dae(num_epochs=NUM_EPOCHS, num_pretrain_epochs=NUM_EPOCHS, bat
         x_train_noisy = corrupt(x_trains[i])
         x_test_noisy = corrupt(x_tests[i])
 
-        pretrain_layer_path = f"models/pretrain_sdae_layer_{i}_{v_noise}.hdf5"
+        pretrain_layer_path = f"{MODEL_PATH}/pretrain_sdae_layer_{i}_{v_noise}.hdf5"
 
         if tf.gfile.Exists(pretrain_layer_path):
             model = keras.models.load(pretrain_layer_path)
@@ -130,7 +132,7 @@ def train_stacked_dae(num_epochs=NUM_EPOCHS, num_pretrain_epochs=NUM_EPOCHS, bat
                 loss='mse'
             )
 
-            # pretrain on MNIST 
+            # pretrain on MNIST
             model.fit(x_train_noisy, x_trains[i],
                         batch_size=batch_size,
                         epochs=num_pretrain_epochs,
@@ -205,7 +207,7 @@ def train_stacked_dae(num_epochs=NUM_EPOCHS, num_pretrain_epochs=NUM_EPOCHS, bat
     # Save model locally
     keras.models.save_model(
         model,
-        f"models/stacked_denoising_autoencoder_{num_stacks}_{v_noise}.hdf5",
+        f"{MODEL_PATH}/stacked_denoising_autoencoder_{num_stacks}_{v_noise}.hdf5",
         overwrite=True,
         include_optimizer=True
     )
@@ -271,7 +273,7 @@ def train_dae(num_epochs=NUM_EPOCHS, batch_size=BATCH_SIZE, testing=False, learn
     # Save model locally
     keras.models.save_model(
         model,
-        f"models/denoising_autoencoder_{v_noise}.hdf5",
+        f"{MODEL_PATH}/denoising_autoencoder_{v_noise}.hdf5",
         overwrite=True,
         include_optimizer=True
     )
