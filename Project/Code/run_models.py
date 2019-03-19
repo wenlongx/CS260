@@ -36,6 +36,7 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
                   run_cnn=False,
                   test_cnn=False,
                   adversarial_training=False,
+                  test_ae=False, # test CNN with AE preprocessing
                   test_cae=False, # test CNN with DAE preprocessing
                   test_dae=False, # test CNN with DAE preprocessing
                   test_stacked_dae=False, # test CNN with Stacked DAE preprocessing
@@ -200,9 +201,64 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
         cnn_name = "cnn"
 
     # ======================================================================
+    # Test with AE
+    # ======================================================================
+    if test_ae:
+        # define TF model graph
+        cnn_model = ConvNet((n_rows, n_cols, n_channels), n_classes)
+        cnn_model.load_weights(f"{MODEL_PATH}/{cnn_name}.hdf5", by_name=False)
+        cnn_model(cnn_model.input)
+
+        wrap = KerasModelWrapper(cnn_model)
+        fgsm = FastGradientMethod(wrap, sess=sess)
+        fgsm_params = {
+            'eps': 0.3,
+            'clip_min': 0.,
+            'clip_max': 1.
+        }
+
+        ae_model = keras.models.load_model(f"{MODEL_PATH}/autoencoder.hdf5")
+
+        ae_metric = get_adversarial_acc_with_preprocess_metric(cnn_model, ae_model, fgsm, fgsm_params)
+
+        cnn_model.compile(
+            optimizer=keras.optimizers.Adam(learning_rate),
+            loss='categorical_crossentropy',
+            metrics=[ae_metric]
+        )
+
+        # Calculate test error
+        _, adv_acc = cnn_model.evaluate(x_test, y_test,
+                                         batch_size=batch_size,
+                                         verbose=0)
+        print(f"Adv Test Accuracy for AE: {adv_acc:.5f}")
+
+
+        ae_model = keras.models.load_model(f"{MODEL_PATH}/autoencoder.hdf5")
+
+        # define TF model graph
+        cnn_model = ConvNet((n_rows, n_cols, n_channels), n_classes)
+        cnn_model.load_weights(f"{MODEL_PATH}/{cnn_name}.hdf5", by_name=False)
+
+        cnn_model.compile(
+            optimizer=keras.optimizers.Adam(learning_rate),
+            loss='categorical_crossentropy',
+            metrics=["accuracy"]
+        )
+
+        # Calculate test error
+        x_recon = ae_model.predict(x_test)
+        _, acc = cnn_model.evaluate(x_recon, y_test,
+                                         batch_size=batch_size,
+                                         verbose=0)
+        print(f"Test Accuracy for AE: {acc:.5f}")
+
+        np.savetxt("dae_accuracies.npy", np.array([acc, adv_acc]))
+
+    # ======================================================================
     # Test with CAE
     # ======================================================================
-    if test_cae:
+    elif test_cae:
         print("test cae")
         cae_adv_accuracies = []
         cae_accuracies = []
@@ -331,6 +387,7 @@ def run_mnist_adv(num_epochs=NUM_EPOCHS,
             dae_accuracies.append(acc)
 
         np.savetxt("dae_accuracies.npy", np.array([dae_accuracies, dae_adv_accuracies]))
+
     # ======================================================================
     # Test with Stacked DAE
     # ======================================================================
@@ -416,9 +473,20 @@ if __name__ == "__main__":
     # WITHOUT ADVERSARIAL TRAINING ================================
 
     # Generate adversarial results / accuracies with
+    # Autoencoder preprocessing
+    run_mnist_adv(run_cnn=False, # train CNN
+                  adversarial_training=False,
+                  test_ae=True, # test CNN with AE preprocessing
+                  test_cae=False, # test CNN with CAE preprocessing
+                  test_dae=False, # test CNN with DAE preprocessing
+                  test_stacked_dae=False, # test CNN with Stacked DAE preprocessing
+                  v_noises=[0.1, 0.2, 0.3, 0.4, 0.5])
+
+    # Generate adversarial results / accuracies with
     # Contractive Autoencoder preprocessing
     run_mnist_adv(run_cnn=False, # train CNN
                   adversarial_training=False,
+                  test_ae=False, # test CNN with AE preprocessing
                   test_cae=True, # test CNN with CAE preprocessing
                   test_dae=False, # test CNN with DAE preprocessing
                   test_stacked_dae=False, # test CNN with Stacked DAE preprocessing
@@ -428,6 +496,7 @@ if __name__ == "__main__":
     # Denoising Autoencoder preprocessing
     run_mnist_adv(run_cnn=False, # train CNN
                   adversarial_training=False,
+                  test_ae=False, # test CNN with AE preprocessing
                   test_cae=False, # test CNN with CAE preprocessing
                   test_dae=True, # test CNN with DAE preprocessing
                   test_stacked_dae=False, # test CNN with Stacked DAE preprocessing
@@ -437,6 +506,7 @@ if __name__ == "__main__":
     # Stacked Denoising Autoencoder preprocessing (stack of 2)
     run_mnist_adv(run_cnn=False, # train CNN
                   adversarial_training=False,
+                  test_ae=False, # test CNN with AE preprocessing
                   test_cae=False, # test CNN with CAE preprocessing
                   test_dae=False, # test CNN with DAE preprocessing
                   test_stacked_dae=True, # test CNN with Stacked DAE preprocessing
@@ -447,6 +517,7 @@ if __name__ == "__main__":
     # Stacked Denoising Autoencoder preprocessing (stack of 3)
     run_mnist_adv(run_cnn=False, # train CNN
                   adversarial_training=False,
+                  test_ae=False, # test CNN with AE preprocessing
                   test_cae=False, # test CNN with CAE preprocessing
                   test_dae=False, # test CNN with DAE preprocessing
                   test_stacked_dae=True, # test CNN with Stacked DAE preprocessing
