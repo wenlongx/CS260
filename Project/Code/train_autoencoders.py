@@ -279,9 +279,58 @@ def train_dae(num_epochs=NUM_EPOCHS, batch_size=BATCH_SIZE, testing=False, learn
     )
 
 
+def train_ae(num_epochs=NUM_EPOCHS, batch_size=BATCH_SIZE, testing=False, learning_rate=LEARNING_RATE):
+
+    # can use gpu
+    config = tf.ConfigProto( device_count = {'GPU': 1 , 'CPU': 1} )
+
+    # Create TF session and set Keras backend session as TF
+    sess = tf.Session(config=config)
+    keras.backend.set_session(sess)
+
+    # Get MNIST test data
+    mnist = MNIST()
+    x_train, y_train = mnist.get_set("train")
+    x_test, y_test = mnist.get_set("test")
+
+    # Obtain image params
+    n_rows, n_cols, n_channels = x_train.shape[1:4]
+    n_classes = y_train.shape[1]
+
+    # define TF model graph
+    model = DenoisingAutoencoder((n_rows, n_cols, n_channels))
+    model.compile(
+        optimizer=keras.optimizers.Adam(learning_rate),
+        loss='mse'
+    )
+
+    # Train an MNIST model
+    model.fit(x_train, x_train,
+              batch_size=batch_size,
+              epochs=num_epochs,
+              validation_data=(x_test, x_test),
+              verbose=1)
+
+    # Evaluate the accuracy on legitimate and adversarial test examples
+    x_test_recon = model.predict(x_test,
+                                batch_size=batch_size,
+                                verbose=0)
+
+    # Save model locally
+    keras.models.save_model(
+        model,
+        f"{MODEL_PATH}/autoencoder.hdf5",
+        overwrite=True,
+        include_optimizer=True
+    )
+
+
 if __name__ == "__main__":
     # set random seed
     tf.random.set_random_seed(1234)
+
+    # Train Conv Autoencoder
+    train_ae(num_epochs=20, testing=False)
 
     # # Train Contractive Autoencoder
     for lam in [1e-5, 1e-4, 1e-3, 1e-2, 1e-1]:
@@ -289,9 +338,9 @@ if __name__ == "__main__":
 
     # # Train Denoising Autoencoder Model
     # for v_noise in [0.1, 0.2, 0.3, 0.4, 0.5]:
-    #     train_dae(num_epochs=10, testing=False, v_noise=v_noise)
+    #     train_dae(num_epochs=20, testing=False, v_noise=v_noise)
 
     # # Train Stacked Denoising Autoencoder Models
     # for num_stacks in [2, 3]:
     #     for v_noise in [0.1, 0.2, 0.3, 0.4, 0.5]:
-    #         train_stacked_dae(num_epochs=30, num_pretrain_epochs=10, testing=False, v_noise=v_noise, num_stacks=num_stacks)
+    #         train_stacked_dae(num_epochs=20, num_pretrain_epochs=10, testing=False, v_noise=v_noise, num_stacks=num_stacks)
