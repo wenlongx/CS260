@@ -281,17 +281,17 @@ def train_dae(num_epochs=NUM_EPOCHS, batch_size=BATCH_SIZE, testing=False, learn
 
 if __name__ == "__main__":
     # set random seed
-    tf.set_random_seed(42)
+    tf.random.set_random_seed(1234)
 
     # # Train Contractive Autoencoder
-    # for lam in [1e-5, 1e-4, 1e-3, 1e-2, 1e-1]:
-    #     train_cae(num_epochs=10, testing=False, lam=lam)
+    for lam in [1e-5, 1e-4, 1e-3, 1e-2, 1e-1]:
+        train_cae(num_epochs=20, testing=False, lam=lam)
 
     # # Train Denoising Autoencoder Model
     # for v_noise in [0.1, 0.2, 0.3, 0.4, 0.5]:
     #     train_dae(num_epochs=10, testing=False, v_noise=v_noise)
 
-    # Train Stacked Denoising Autoencoder Models
-    for num_stacks in [2, 3]:
-        for v_noise in [0.1, 0.2, 0.3, 0.4, 0.5]:
-            train_stacked_dae(num_epochs=30, num_pretrain_epochs=10, testing=False, v_noise=v_noise, num_stacks=num_stacks)
+    # # Train Stacked Denoising Autoencoder Models
+    # for num_stacks in [2, 3]:
+    #     for v_noise in [0.1, 0.2, 0.3, 0.4, 0.5]:
+    #         train_stacked_dae(num_epochs=30, num_pretrain_epochs=10, testing=False, v_noise=v_noise, num_stacks=num_stacks)

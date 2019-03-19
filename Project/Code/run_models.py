@@ -23,7 +23,7 @@ from models import *
 
 NUM_EPOCHS = 20
 BATCH_SIZE = 64
-LEARNING_RATE = 0.002
+LEARNING_RATE = 0.001
 
 # MODEL_PATH = "models"
 MODEL_PATH = "20_epochs"
