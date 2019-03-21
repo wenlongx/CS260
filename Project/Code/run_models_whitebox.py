@@ -25,8 +25,7 @@ NUM_EPOCHS = 20
 BATCH_SIZE = 64
 LEARNING_RATE = 0.002
 
-# MODEL_PATH = "models"
-MODEL_PATH = "20_epochs"
+MODEL_PATH = "models"
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -292,6 +291,10 @@ if __name__ == "__main__":
 
     # WITHOUT ADVERSARIAL TRAINING ================================
 
+    print("========================================================================")
+    print("Generic Autoencoder")
+    print("========================================================================")
+
     # Generate adversarial results / accuracies with
     # Autoencoder preprocessing
     run_mnist_adv(test_ae=True, # test CNN with AE preprocessing
@@ -299,6 +302,10 @@ if __name__ == "__main__":
                   test_dae=False, # test CNN with DAE preprocessing
                   test_stacked_dae=False, # test CNN with Stacked DAE preprocessing
                   )
+
+    print("========================================================================")
+    print("Contractive Autoencoder")
+    print("========================================================================")
 
     # Generate adversarial results / accuracies with
     # Contractive Autoencoder preprocessing
@@ -308,6 +315,10 @@ if __name__ == "__main__":
                   test_stacked_dae=False, # test CNN with Stacked DAE preprocessing
                   lambdas=[1e-5, 1e-4, 1e-3, 1e-2, 1e-1])
 
+    print("========================================================================")
+    print("Denoising Autoencoder")
+    print("========================================================================")
+
     # Generate adversarial results / accuracies with
     # Denoising Autoencoder preprocessing
     run_mnist_adv(test_ae=False, # test CNN with AE preprocessing
@@ -315,6 +326,10 @@ if __name__ == "__main__":
                   test_dae=True, # test CNN with DAE preprocessing
                   test_stacked_dae=False, # test CNN with Stacked DAE preprocessing
                   v_noises=[0.1, 0.2, 0.3, 0.4, 0.5])
+
+    print("========================================================================")
+    print("Stacked Denoising Autoencoder (2)")
+    print("========================================================================")
 
     # Generate adversarial results / accuracies with
     # Stacked Denoising Autoencoder preprocessing (stack of 2)
@@ -324,6 +339,10 @@ if __name__ == "__main__":
                   test_stacked_dae=True, # test CNN with Stacked DAE preprocessing
                   num_stacks=2,
                   v_noises=[0.1, 0.2, 0.3, 0.4, 0.5])
+
+    print("========================================================================")
+    print("Stacked Denoising Autoencoder (3)")
+    print("========================================================================")
 
     # Generate adversarial results / accuracies with
     # Stacked Denoising Autoencoder preprocessing (stack of 3)

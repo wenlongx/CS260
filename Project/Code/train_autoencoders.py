@@ -16,7 +16,7 @@ from cleverhans.dataset import MNIST
 
 from models import *
 
-NUM_EPOCHS = 10
+NUM_EPOCHS = 20
 BATCH_SIZE = 64
 LEARNING_RATE = 0.001
 
@@ -330,17 +330,17 @@ if __name__ == "__main__":
     tf.random.set_random_seed(1234)
 
     # Train Conv Autoencoder
-    train_ae(num_epochs=20, testing=False)
+    train_ae(num_epochs=NUM_EPOCHS, testing=False)
 
-    # # Train Contractive Autoencoder
+    # Train Contractive Autoencoder
     for lam in [1e-5, 1e-4, 1e-3, 1e-2, 1e-1]:
-        train_cae(num_epochs=20, testing=False, lam=lam)
+        train_cae(num_epochs=NUM_EPOCHS, testing=False, lam=lam)
 
-    # # Train Denoising Autoencoder Model
-    # for v_noise in [0.1, 0.2, 0.3, 0.4, 0.5]:
-    #     train_dae(num_epochs=20, testing=False, v_noise=v_noise)
+    # Train Denoising Autoencoder Model
+    for v_noise in [0.1, 0.2, 0.3, 0.4, 0.5]:
+        train_dae(num_epochs=NUM_EPOCHS, testing=False, v_noise=v_noise)
 
-    # # Train Stacked Denoising Autoencoder Models
-    # for num_stacks in [2, 3]:
-    #     for v_noise in [0.1, 0.2, 0.3, 0.4, 0.5]:
-    #         train_stacked_dae(num_epochs=20, num_pretrain_epochs=10, testing=False, v_noise=v_noise, num_stacks=num_stacks)
+    # Train Stacked Denoising Autoencoder Models
+    for num_stacks in [2, 3]:
+        for v_noise in [0.1, 0.2, 0.3, 0.4, 0.5]:
+            train_stacked_dae(num_epochs=NUM_EPOCHS, num_pretrain_epochs=10, testing=False, v_noise=v_noise, num_stacks=num_stacks)
