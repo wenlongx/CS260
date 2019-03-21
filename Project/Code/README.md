@@ -5,6 +5,12 @@ For this project, I implemented several autoencoders and a classifier using Kera
 
 The code consists of 4 files: `models.py`, `train_autoencoders.py`, `run_models.py`, `run_models_whitebox.py`. `models.py` includes all the code to generate the keras models, while `train_autoencoders.py` includes all the code to train and save the various autoencoder models that I tested, for various hyperparameters. `run_models.py` and `run_models_whitebox.py` include the code that loads these trained classifiers and autoencoders, and runs an attack using FGSM on them for the grey box and white box setting, respectively.
 
+## Installing Cleverhans obtaining MNIST
+To install cleverhans (which includes a loader / downloader for the MNIST dataset), install it via pip:
+```
+pip install git+https://github.com/tensorflow/cleverhans.git#egg=cleverhans
+```
+
 ## Running the Code
 To generate and train the models needed to run the attack, first create the directory `models` in the same directory that houses the code, and run the following:
 ```
